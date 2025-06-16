@@ -1,6 +1,6 @@
 import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
-import { DynamoDBDocumentClient, PutCommand } from '@aws-sdk/lib-dynamodb';
+import { DynamoDBDocumentClient, PutCommand, QueryCommand } from '@aws-sdk/lib-dynamodb';
 import { randomUUID } from 'crypto';
 
 const client = new DynamoDBClient({});
@@ -61,6 +61,56 @@ export const postHandler = async (event: APIGatewayProxyEvent): Promise<APIGatew
             body: JSON.stringify({
                 message: 'Rule created successfully',
                 ruleId
+            })
+        };
+
+    } catch (error) {
+        console.error('Error:', error);
+        return {
+            statusCode: 500,
+            body: JSON.stringify({ message: 'Internal server error' })
+        };
+    }
+};
+
+export const getHandler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
+    try {
+        // Check if it's a GET request
+        if (event.httpMethod !== 'GET') {
+            return {
+                statusCode: 405,
+                body: JSON.stringify({ message: 'Method not allowed' })
+            };
+        }
+
+        // Get API key from Authorization header
+        const apiKey = event.headers.Authorization;
+        if (!apiKey) {
+            return {
+                statusCode: 401,
+                body: JSON.stringify({ message: 'Authorization header is required' })
+            };
+        }
+
+        // Query DynamoDB for rules matching the API key
+        const result = await docClient.send(new QueryCommand({
+            TableName: RULES_TABLE,
+            KeyConditionExpression: 'apiKey = :apiKey',
+            ExpressionAttributeValues: {
+                ':apiKey': apiKey
+            }
+        }));
+
+        // Transform the items to include parsed userRules
+        const rules = result.Items?.map(item => ({
+            ...item,
+            userRules: JSON.parse(item.userRules)
+        })) || [];
+
+        return {
+            statusCode: 200,
+            body: JSON.stringify({
+                rules
             })
         };
 
