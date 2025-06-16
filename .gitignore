@@ -1,0 +1,8 @@
+# Node modules
+node_modules/
+
+# Cdk build artifcats
+cdk.out/
+
+# Build results
+dist/
