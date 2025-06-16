@@ -1,6 +1,6 @@
 import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
-import { DynamoDBDocumentClient, PutCommand, QueryCommand, UpdateCommand, GetCommand } from '@aws-sdk/lib-dynamodb';
+import { DynamoDBDocumentClient, PutCommand, QueryCommand, UpdateCommand, GetCommand, DeleteCommand } from '@aws-sdk/lib-dynamodb';
 import { randomUUID } from 'crypto';
 
 const client = new DynamoDBClient({});
@@ -198,6 +198,68 @@ export const putHandler = async (event: APIGatewayProxyEvent): Promise<APIGatewa
             statusCode: 200,
             body: JSON.stringify({
                 message: 'Rule updated successfully',
+                ruleId
+            })
+        };
+
+    } catch (error) {
+        console.error('Error:', error);
+        return {
+            statusCode: 500,
+            body: JSON.stringify({ message: 'Internal server error' })
+        };
+    }
+};
+
+export const deleteHandler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
+    try {
+        // Get API key from Authorization header
+        const apiKey = event.headers.Authorization;
+        if (!apiKey) {
+            return {
+                statusCode: 401,
+                body: JSON.stringify({ message: 'Authorization header is required' })
+            };
+        }
+
+        // Get ruleId from path parameters
+        const ruleId = event.pathParameters?.ruleId;
+        if (!ruleId) {
+            return {
+                statusCode: 400,
+                body: JSON.stringify({ message: 'ruleId is required in path' })
+            };
+        }
+
+        // First, get the existing rule to verify ownership
+        const existingRule = await docClient.send(new GetCommand({
+            TableName: RULES_TABLE,
+            Key: {
+                apiKey,
+                ruleId
+            }
+        }));
+
+        if (!existingRule.Item) {
+            return {
+                statusCode: 404,
+                body: JSON.stringify({ message: 'Rule not found or you do not have permission to delete it' })
+            };
+        }
+
+        // Delete the rule
+        await docClient.send(new DeleteCommand({
+            TableName: RULES_TABLE,
+            Key: {
+                apiKey,
+                ruleId
+            }
+        }));
+
+        return {
+            statusCode: 200,
+            body: JSON.stringify({
+                message: 'Rule deleted successfully',
                 ruleId
             })
         };
