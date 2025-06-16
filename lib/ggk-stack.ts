@@ -1,6 +1,7 @@
 import * as cdk from 'aws-cdk-lib';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
 import * as apigateway from 'aws-cdk-lib/aws-apigateway';
+import * as dynamodb from 'aws-cdk-lib/aws-dynamodb';
 import { Construct } from 'constructs';
 import * as path from 'path';
 
@@ -8,12 +9,41 @@ export class GgkStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
     super(scope, id, props);
 
+    // Create DynamoDB Tables
+    const rulesTable = new dynamodb.Table(this, 'RulesRecords', {
+      partitionKey: { name: 'apiKey', type: dynamodb.AttributeType.STRING },
+      sortKey: { name: 'ruleId', type: dynamodb.AttributeType.STRING },
+      billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
+      removalPolicy: cdk.RemovalPolicy.DESTROY,
+      pointInTimeRecovery: true,
+    });
+
+    // Add GSI for rules table
+    rulesTable.addGlobalSecondaryIndex({
+      indexName: 'ruleIdIndex',
+      partitionKey: { name: 'ruleId', type: dynamodb.AttributeType.STRING },
+      sortKey: { name: 'createdAt', type: dynamodb.AttributeType.STRING },
+      projectionType: dynamodb.ProjectionType.ALL,
+    });
+
+    const apiKeyTable = new dynamodb.Table(this, 'APIKeyRecords', {
+      partitionKey: { name: 'apiKeyId', type: dynamodb.AttributeType.STRING },
+      sortKey: { name: 'email', type: dynamodb.AttributeType.STRING },
+      billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
+      removalPolicy: cdk.RemovalPolicy.DESTROY,
+      pointInTimeRecovery: true,
+    });
+
     // Create a Lambda function
     const helloWorldFunction = new lambda.Function(this, 'HelloWorldFunction', {
       runtime: lambda.Runtime.NODEJS_18_X,
       handler: 'hello-world.handler',
       code: lambda.Code.fromAsset(path.join(__dirname, '../lambda')),
     });
+
+    // Grant Lambda function access to the DynamoDB tables
+    rulesTable.grantReadWriteData(helloWorldFunction);
+    apiKeyTable.grantReadWriteData(helloWorldFunction);
 
     // Create an API Gateway
     const api = new apigateway.RestApi(this, 'GgkApi', {
@@ -29,6 +59,17 @@ export class GgkStack extends cdk.Stack {
     new cdk.CfnOutput(this, 'ApiEndpoint', {
       value: api.url,
       description: 'The URL of the API endpoint',
+    });
+
+    // Output the DynamoDB table names
+    new cdk.CfnOutput(this, 'RulesTableName', {
+      value: rulesTable.tableName,
+      description: 'The name of the Rules table',
+    });
+
+    new cdk.CfnOutput(this, 'ApiKeyTableName', {
+      value: apiKeyTable.tableName,
+      description: 'The name of the API Key table',
     });
   }
 } 
