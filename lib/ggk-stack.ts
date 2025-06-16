@@ -47,16 +47,36 @@ export class GgkStack extends cdk.Stack {
       pointInTimeRecovery: true,
     });
 
-    // Create a Lambda function
+    // Create Lambda functions
     const helloWorldFunction = new lambda.Function(this, 'HelloWorldFunction', {
       runtime: lambda.Runtime.NODEJS_18_X,
       handler: 'hello-world.handler',
       code: lambda.Code.fromAsset(path.join(__dirname, '../lambda')),
     });
 
-    // Grant Lambda function access to the DynamoDB tables
+    const rulesPostFunction = new lambda.Function(this, 'RulesPostFunction', {
+      runtime: lambda.Runtime.NODEJS_18_X,
+      handler: 'rules.postHandler',
+      code: lambda.Code.fromAsset(path.join(__dirname, '../lambda')),
+      environment: {
+        RULES_TABLE_NAME: rulesTable.tableName,
+      },
+    });
+
+    const rulesGetFunction = new lambda.Function(this, 'RulesGetFunction', {
+      runtime: lambda.Runtime.NODEJS_18_X,
+      handler: 'rules.getHandler',
+      code: lambda.Code.fromAsset(path.join(__dirname, '../lambda')),
+      environment: {
+        RULES_TABLE_NAME: rulesTable.tableName,
+      },
+    });
+
+    // Grant Lambda functions access to the DynamoDB tables
     rulesTable.grantReadWriteData(helloWorldFunction);
     apiKeyTable.grantReadWriteData(helloWorldFunction);
+    rulesTable.grantReadWriteData(rulesPostFunction);
+    rulesTable.grantReadData(rulesGetFunction);
 
     // Create an API Gateway
     const api = new apigateway.RestApi(this, 'GgkApi', {
@@ -64,9 +84,13 @@ export class GgkStack extends cdk.Stack {
       description: 'This is the Guid Gate Keeper API with a healthcheck endpoint',
     });
 
-    // Create a resource and method
+    // Create resources and methods
     const healthcheckResource = api.root.addResource('healthcheck');
     healthcheckResource.addMethod('GET', new apigateway.LambdaIntegration(helloWorldFunction));
+
+    const rulesResource = api.root.addResource('rules');
+    rulesResource.addMethod('POST', new apigateway.LambdaIntegration(rulesPostFunction));
+    rulesResource.addMethod('GET', new apigateway.LambdaIntegration(rulesGetFunction));
 
     // Output the API endpoint URL
     new cdk.CfnOutput(this, 'ApiEndpoint', {
