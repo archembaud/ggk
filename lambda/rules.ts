@@ -7,7 +7,7 @@ const client = new DynamoDBClient({});
 const docClient = DynamoDBDocumentClient.from(client);
 const RULES_TABLE = process.env.RULES_TABLE_NAME || '';
 
-export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
+export const postHandler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
     try {
         // Check if it's a POST request
         if (event.httpMethod !== 'POST') {

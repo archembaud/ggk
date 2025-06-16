@@ -54,9 +54,9 @@ export class GgkStack extends cdk.Stack {
       code: lambda.Code.fromAsset(path.join(__dirname, '../lambda')),
     });
 
-    const rulesFunction = new lambda.Function(this, 'RulesFunction', {
+    const rulesPostFunction = new lambda.Function(this, 'RulesPostFunction', {
       runtime: lambda.Runtime.NODEJS_18_X,
-      handler: 'rules.handler',
+      handler: 'rules.postHandler',
       code: lambda.Code.fromAsset(path.join(__dirname, '../lambda')),
       environment: {
         RULES_TABLE_NAME: rulesTable.tableName,
@@ -66,7 +66,7 @@ export class GgkStack extends cdk.Stack {
     // Grant Lambda functions access to the DynamoDB tables
     rulesTable.grantReadWriteData(helloWorldFunction);
     apiKeyTable.grantReadWriteData(helloWorldFunction);
-    rulesTable.grantReadWriteData(rulesFunction);
+    rulesTable.grantReadWriteData(rulesPostFunction);
 
     // Create an API Gateway
     const api = new apigateway.RestApi(this, 'GgkApi', {
@@ -79,7 +79,7 @@ export class GgkStack extends cdk.Stack {
     healthcheckResource.addMethod('GET', new apigateway.LambdaIntegration(helloWorldFunction));
 
     const rulesResource = api.root.addResource('rules');
-    rulesResource.addMethod('POST', new apigateway.LambdaIntegration(rulesFunction));
+    rulesResource.addMethod('POST', new apigateway.LambdaIntegration(rulesPostFunction));
 
     // Output the API endpoint URL
     new cdk.CfnOutput(this, 'ApiEndpoint', {
