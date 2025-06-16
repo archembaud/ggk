@@ -101,11 +101,14 @@ export const getHandler = async (event: APIGatewayProxyEvent): Promise<APIGatewa
             }
         }));
 
-        // Transform the items to include parsed userRules
-        const rules = result.Items?.map(item => ({
-            ...item,
-            userRules: JSON.parse(item.userRules)
-        })) || [];
+        // Transform the items to include parsed userRules and remove apiKey
+        const rules = result.Items?.map(item => {
+            const { apiKey, ...ruleWithoutApiKey } = item;
+            return {
+                ...ruleWithoutApiKey,
+                userRules: JSON.parse(item.userRules)
+            };
+        }) || [];
 
         return {
             statusCode: 200,
