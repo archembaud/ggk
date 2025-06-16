@@ -1,8 +1,8 @@
 {
-  "name": "simple-api",
+  "name": "ggk",
   "version": "0.1.0",
   "bin": {
-    "simple-api": "bin/simple-api.js"
+    "ggk": "bin/ggk.js"
   },
   "scripts": {
     "build": "tsc",
