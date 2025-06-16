@@ -135,10 +135,10 @@ export const putHandler = async (event: APIGatewayProxyEvent): Promise<APIGatewa
 
         // Parse request body
         const body = JSON.parse(event.body || '{}');
-        if (!body.ruleAPI && !body.userRules) {
+        if (!body.ruleAPI && !body.userRules && body.ruleEnabled === undefined) {
             return {
                 statusCode: 400,
-                body: JSON.stringify({ message: 'At least one of ruleAPI or userRules must be provided' })
+                body: JSON.stringify({ message: 'At least one of ruleAPI, userRules, or ruleEnabled must be provided' })
             };
         }
 
@@ -172,6 +172,11 @@ export const putHandler = async (event: APIGatewayProxyEvent): Promise<APIGatewa
         if (body.userRules) {
             updateExpressions.push('userRules = :userRules');
             expressionAttributeValues[':userRules'] = JSON.stringify(body.userRules);
+        }
+
+        if (body.ruleEnabled !== undefined) {
+            updateExpressions.push('ruleEnabled = :ruleEnabled');
+            expressionAttributeValues[':ruleEnabled'] = body.ruleEnabled;
         }
 
         // Add dateModified to update expressions

@@ -17,7 +17,8 @@ API_KEY="92d077c1-31ed-49be-a1ce-dae6c2b07e19"
 
 # Now to modify an existing rule - first, update the ruleAPI
 JSON_PAYLOAD='{
-    "ruleAPI": "test-api-updated"
+    "ruleAPI": "test-api-updated",
+    "ruleEnabled": false
 }'
 
 # Make the PUT request
