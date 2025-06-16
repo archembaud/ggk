@@ -2,12 +2,25 @@ import * as cdk from 'aws-cdk-lib';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
 import * as apigateway from 'aws-cdk-lib/aws-apigateway';
 import * as dynamodb from 'aws-cdk-lib/aws-dynamodb';
+import * as ssm from 'aws-cdk-lib/aws-ssm';
 import { Construct } from 'constructs';
 import * as path from 'path';
+import { v4 as uuidv4 } from 'uuid';
 
 export class GgkStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
     super(scope, id, props);
+
+    // Generate a random GUID for the admin key
+    const adminKey = uuidv4();
+
+    // Create Parameter Store parameter
+    new ssm.StringParameter(this, 'AdminKeyParameter', {
+      parameterName: 'GGK_ADMIN_KEY',
+      stringValue: adminKey,
+      description: 'Admin API key for Guid Gate Keeper',
+      tier: ssm.ParameterTier.STANDARD,
+    });
 
     // Create DynamoDB Tables
     const rulesTable = new dynamodb.Table(this, 'RulesRecords', {
@@ -70,6 +83,12 @@ export class GgkStack extends cdk.Stack {
     new cdk.CfnOutput(this, 'ApiKeyTableName', {
       value: apiKeyTable.tableName,
       description: 'The name of the API Key table',
+    });
+
+    // Output the admin key (for initial setup)
+    new cdk.CfnOutput(this, 'AdminKey', {
+      value: adminKey,
+      description: 'The admin API key (save this securely)',
     });
   }
 } 
