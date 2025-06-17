@@ -35,7 +35,7 @@ export class GgkStack extends cdk.Stack {
     rulesTable.addGlobalSecondaryIndex({
       indexName: 'ruleIdIndex',
       partitionKey: { name: 'ruleId', type: dynamodb.AttributeType.STRING },
-      sortKey: { name: 'createdAt', type: dynamodb.AttributeType.STRING },
+      sortKey: { name: 'dateCreated', type: dynamodb.AttributeType.NUMBER },
       projectionType: dynamodb.ProjectionType.ALL,
     });
 
@@ -105,7 +105,7 @@ export class GgkStack extends cdk.Stack {
     // Create an API Gateway
     const api = new apigateway.RestApi(this, 'GgkApi', {
       restApiName: 'Guid Gate Keeper API',
-      description: 'This is the Guid Gate Keeper API with a healthcheck endpoint',
+      description: 'This is the Guid Gate Keeper API with a healthcheck endpoint'
     });
 
     // Create resources and methods

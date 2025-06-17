@@ -18,13 +18,7 @@ if [ -z "$GGK_ADMIN" ]; then
     exit 1
 fi
 
-# Test an invalid fetch, with the admin key provided
-API_KEY="boom-shaka-laka"
-
-echo "Testing invalid valid fetch on rule"
-
-curl -X GET \
-    -H "Authorization: $API_KEY" \
-    -H "AdminKey: $GGK_ADMIN" \
+curl -v -X GET \
+    -H "Authorization: $GGK_ADMIN" \
     -H "Content-Type: application/json" \
     "$GGK_URL/rules/$GGK_RULE_ID"

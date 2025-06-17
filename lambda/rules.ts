@@ -78,9 +78,8 @@ export const getHandler = async (event: APIGatewayProxyEvent): Promise<APIGatewa
             };
         }
 
-        // Check for AdminKey header
-        const adminKey = event.headers.AdminKey;
-        const isAdmin = adminKey === ADMIN_KEY;
+        // Check if the API key is the admin key
+        const isAdmin = apiKey === ADMIN_KEY;
 
         // Get ruleId from path parameters
         const ruleId = event.pathParameters?.ruleId;
@@ -96,7 +95,8 @@ export const getHandler = async (event: APIGatewayProxyEvent): Promise<APIGatewa
                     KeyConditionExpression: 'ruleId = :ruleId',
                     ExpressionAttributeValues: {
                         ':ruleId': ruleId
-                    }
+                    },
+                    ScanIndexForward: false  // This will get the most recent item first
                 }));
                 
                 if (!queryResult.Items || queryResult.Items.length === 0) {
