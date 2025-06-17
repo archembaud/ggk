@@ -15,7 +15,7 @@ export class GgkStack extends cdk.Stack {
     const adminKey = uuidv4();
 
     // Create Parameter Store parameter
-    new ssm.StringParameter(this, 'AdminKeyParameter', {
+    const adminKeyParameter = new ssm.StringParameter(this, 'AdminKeyParameter', {
       parameterName: 'GGK_ADMIN_KEY',
       stringValue: adminKey,
       description: 'Admin API key for Guid Gate Keeper',
@@ -35,7 +35,7 @@ export class GgkStack extends cdk.Stack {
     rulesTable.addGlobalSecondaryIndex({
       indexName: 'ruleIdIndex',
       partitionKey: { name: 'ruleId', type: dynamodb.AttributeType.STRING },
-      sortKey: { name: 'createdAt', type: dynamodb.AttributeType.STRING },
+      sortKey: { name: 'dateCreated', type: dynamodb.AttributeType.NUMBER },
       projectionType: dynamodb.ProjectionType.ALL,
     });
 
@@ -60,6 +60,7 @@ export class GgkStack extends cdk.Stack {
       code: lambda.Code.fromAsset(path.join(__dirname, '../lambda')),
       environment: {
         RULES_TABLE_NAME: rulesTable.tableName,
+        ADMIN_KEY: adminKey,
       },
     });
 
@@ -69,6 +70,7 @@ export class GgkStack extends cdk.Stack {
       code: lambda.Code.fromAsset(path.join(__dirname, '../lambda')),
       environment: {
         RULES_TABLE_NAME: rulesTable.tableName,
+        ADMIN_KEY: adminKey,
       },
     });
 
@@ -78,6 +80,7 @@ export class GgkStack extends cdk.Stack {
       code: lambda.Code.fromAsset(path.join(__dirname, '../lambda')),
       environment: {
         RULES_TABLE_NAME: rulesTable.tableName,
+        ADMIN_KEY: adminKey,
       },
     });
 
@@ -87,6 +90,7 @@ export class GgkStack extends cdk.Stack {
       code: lambda.Code.fromAsset(path.join(__dirname, '../lambda')),
       environment: {
         RULES_TABLE_NAME: rulesTable.tableName,
+        ADMIN_KEY: adminKey,
       },
     });
 
@@ -101,7 +105,7 @@ export class GgkStack extends cdk.Stack {
     // Create an API Gateway
     const api = new apigateway.RestApi(this, 'GgkApi', {
       restApiName: 'Guid Gate Keeper API',
-      description: 'This is the Guid Gate Keeper API with a healthcheck endpoint',
+      description: 'This is the Guid Gate Keeper API with a healthcheck endpoint'
     });
 
     // Create resources and methods
@@ -113,6 +117,7 @@ export class GgkStack extends cdk.Stack {
     rulesResource.addMethod('GET', new apigateway.LambdaIntegration(rulesGetFunction));
 
     const ruleResource = rulesResource.addResource('{ruleId}');
+    ruleResource.addMethod('GET', new apigateway.LambdaIntegration(rulesGetFunction));
     ruleResource.addMethod('PUT', new apigateway.LambdaIntegration(rulesPutFunction));
     ruleResource.addMethod('DELETE', new apigateway.LambdaIntegration(rulesDeleteFunction));
 
