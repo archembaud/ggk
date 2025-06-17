@@ -393,4 +393,127 @@ export const deleteHandler = async (event: APIGatewayProxyEvent): Promise<APIGat
             body: JSON.stringify({ message: 'Internal server error' })
         };
     }
+};
+
+interface IsAllowedRequest {
+    userID: string;
+    path: string;
+    method: string;
+}
+
+export const isAllowedHandler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
+    try {
+        // Get ruleId from path parameters
+        const ruleId = event.pathParameters?.ruleId;
+        if (!ruleId) {
+            return {
+                statusCode: 400,
+                body: JSON.stringify({ message: 'ruleId is required in path' })
+            };
+        }
+
+        // Parse and validate request body
+        if (!event.body) {
+            return {
+                statusCode: 400,
+                body: JSON.stringify({ message: 'Request body is required' })
+            };
+        }
+
+        const body = JSON.parse(event.body) as IsAllowedRequest;
+        if (!body.userID || !body.path || !body.method) {
+            return {
+                statusCode: 400,
+                body: JSON.stringify({ message: 'userID, path, and method are required in request body' })
+            };
+        }
+
+        // Get the rule using the GSI
+        const queryResult = await docClient.send(new QueryCommand({
+            TableName: RULES_TABLE,
+            IndexName: 'ruleIdIndex',
+            KeyConditionExpression: 'ruleId = :ruleId',
+            ExpressionAttributeValues: {
+                ':ruleId': ruleId
+            },
+            ScanIndexForward: false  // This will get the most recent item first
+        }));
+
+        if (!queryResult.Items || queryResult.Items.length === 0) {
+            return {
+                statusCode: 404,
+                body: JSON.stringify({ message: 'Rule not found' })
+            };
+        }
+
+        // Use the first matching item
+        const rule = queryResult.Items[0];
+
+        // Parse the userRules from the stored JSON string
+        const userRules = JSON.parse(rule.userRules);
+
+        // Check if the rule is enabled
+        if (!rule.ruleEnabled) {
+            return {
+                statusCode: 401,
+                body: JSON.stringify({ 
+                    message: 'Access denied',
+                    reason: 'Rule is disabled'
+                })
+            };
+        }
+
+        // Find a matching user rule
+        const matchingUserRule = userRules.find((userRule: any) => userRule.userID === body.userID);
+        if (!matchingUserRule) {
+            return {
+                statusCode: 401,
+                body: JSON.stringify({ 
+                    message: 'Access denied',
+                    reason: 'User not found in rule'
+                })
+            };
+        }
+
+        // Check if any of the allowed endpoints match the request
+        const matchingEndpoint = matchingUserRule.allowedEndpoints.find((endpoint: any) => {
+            // Check if the path matches
+            if (endpoint.path !== body.path) {
+                return false;
+            }
+
+            // Check if the method is allowed
+            const allowedMethods = endpoint.methods.split(',').map((m: string) => m.trim().toUpperCase());
+            return allowedMethods.includes(body.method.toUpperCase());
+        });
+
+        if (!matchingEndpoint) {
+            return {
+                statusCode: 401,
+                body: JSON.stringify({ 
+                    message: 'Access denied',
+                    reason: 'Path or method not allowed for this user'
+                })
+            };
+        }
+
+        // If we get here, the access is allowed
+        return {
+            statusCode: 200,
+            body: JSON.stringify({
+                message: 'Access allowed',
+                ruleId,
+                userID: body.userID,
+                path: body.path,
+                method: body.method
+            })
+        };
+
+    } catch (error) {
+        console.error('Error:', error);
+        return {
+            statusCode: 500,
+            body: JSON.stringify({ message: 'Internal server error' })
+        };
+    }
 }; 
