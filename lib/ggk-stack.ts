@@ -117,6 +117,7 @@ export class GgkStack extends cdk.Stack {
     rulesResource.addMethod('GET', new apigateway.LambdaIntegration(rulesGetFunction));
 
     const ruleResource = rulesResource.addResource('{ruleId}');
+    ruleResource.addMethod('GET', new apigateway.LambdaIntegration(rulesGetFunction));
     ruleResource.addMethod('PUT', new apigateway.LambdaIntegration(rulesPutFunction));
     ruleResource.addMethod('DELETE', new apigateway.LambdaIntegration(rulesDeleteFunction));
 
