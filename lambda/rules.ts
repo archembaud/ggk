@@ -1,6 +1,6 @@
 import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
-import { DynamoDBDocumentClient, PutCommand, QueryCommand } from '@aws-sdk/lib-dynamodb';
+import { DynamoDBDocumentClient, PutCommand, QueryCommand, UpdateCommand, GetCommand, DeleteCommand } from '@aws-sdk/lib-dynamodb';
 import { randomUUID } from 'crypto';
 
 const client = new DynamoDBClient({});
@@ -9,13 +9,6 @@ const RULES_TABLE = process.env.RULES_TABLE_NAME || '';
 
 export const postHandler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
     try {
-        // Check if it's a POST request
-        if (event.httpMethod !== 'POST') {
-            return {
-                statusCode: 405,
-                body: JSON.stringify({ message: 'Method not allowed' })
-            };
-        }
 
         // Get API key from Authorization header
         const apiKey = event.headers.Authorization;
@@ -75,13 +68,6 @@ export const postHandler = async (event: APIGatewayProxyEvent): Promise<APIGatew
 
 export const getHandler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
     try {
-        // Check if it's a GET request
-        if (event.httpMethod !== 'GET') {
-            return {
-                statusCode: 405,
-                body: JSON.stringify({ message: 'Method not allowed' })
-            };
-        }
 
         // Get API key from Authorization header
         const apiKey = event.headers.Authorization;
@@ -114,6 +100,167 @@ export const getHandler = async (event: APIGatewayProxyEvent): Promise<APIGatewa
             statusCode: 200,
             body: JSON.stringify({
                 rules
+            })
+        };
+
+    } catch (error) {
+        console.error('Error:', error);
+        return {
+            statusCode: 500,
+            body: JSON.stringify({ message: 'Internal server error' })
+        };
+    }
+};
+
+export const putHandler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
+    try {
+
+        // Get API key from Authorization header
+        const apiKey = event.headers.Authorization;
+        if (!apiKey) {
+            return {
+                statusCode: 401,
+                body: JSON.stringify({ message: 'Authorization header is required' })
+            };
+        }
+
+        // Get ruleId from path parameters
+        const ruleId = event.pathParameters?.ruleId;
+        if (!ruleId) {
+            return {
+                statusCode: 400,
+                body: JSON.stringify({ message: 'ruleId is required in path' })
+            };
+        }
+
+        // Parse request body
+        const body = JSON.parse(event.body || '{}');
+        if (!body.ruleAPI && !body.userRules && body.ruleEnabled === undefined) {
+            return {
+                statusCode: 400,
+                body: JSON.stringify({ message: 'At least one of ruleAPI, userRules, or ruleEnabled must be provided' })
+            };
+        }
+
+        // First, get the existing rule to verify ownership
+        const existingRule = await docClient.send(new GetCommand({
+            TableName: RULES_TABLE,
+            Key: {
+                apiKey,
+                ruleId
+            }
+        }));
+
+        if (!existingRule.Item) {
+            return {
+                statusCode: 404,
+                body: JSON.stringify({ message: 'Rule not found or you do not have permission to update it' })
+            };
+        }
+
+        // Prepare update expression and attribute values
+        const updateExpressions: string[] = [];
+        const expressionAttributeValues: Record<string, any> = {
+            ':dateModified': Date.now()
+        };
+
+        if (body.ruleAPI) {
+            updateExpressions.push('ruleAPI = :ruleAPI');
+            expressionAttributeValues[':ruleAPI'] = body.ruleAPI;
+        }
+
+        if (body.userRules) {
+            updateExpressions.push('userRules = :userRules');
+            expressionAttributeValues[':userRules'] = JSON.stringify(body.userRules);
+        }
+
+        if (body.ruleEnabled !== undefined) {
+            updateExpressions.push('ruleEnabled = :ruleEnabled');
+            expressionAttributeValues[':ruleEnabled'] = body.ruleEnabled;
+        }
+
+        // Add dateModified to update expressions
+        updateExpressions.push('dateModified = :dateModified');
+
+        // Update the rule
+        await docClient.send(new UpdateCommand({
+            TableName: RULES_TABLE,
+            Key: {
+                apiKey,
+                ruleId
+            },
+            UpdateExpression: `SET ${updateExpressions.join(', ')}`,
+            ExpressionAttributeValues: expressionAttributeValues,
+            ReturnValues: 'ALL_NEW'
+        }));
+
+        return {
+            statusCode: 200,
+            body: JSON.stringify({
+                message: 'Rule updated successfully',
+                ruleId
+            })
+        };
+
+    } catch (error) {
+        console.error('Error:', error);
+        return {
+            statusCode: 500,
+            body: JSON.stringify({ message: 'Internal server error' })
+        };
+    }
+};
+
+export const deleteHandler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
+    try {
+        // Get API key from Authorization header
+        const apiKey = event.headers.Authorization;
+        if (!apiKey) {
+            return {
+                statusCode: 401,
+                body: JSON.stringify({ message: 'Authorization header is required' })
+            };
+        }
+
+        // Get ruleId from path parameters
+        const ruleId = event.pathParameters?.ruleId;
+        if (!ruleId) {
+            return {
+                statusCode: 400,
+                body: JSON.stringify({ message: 'ruleId is required in path' })
+            };
+        }
+
+        // First, get the existing rule to verify ownership
+        const existingRule = await docClient.send(new GetCommand({
+            TableName: RULES_TABLE,
+            Key: {
+                apiKey,
+                ruleId
+            }
+        }));
+
+        if (!existingRule.Item) {
+            return {
+                statusCode: 404,
+                body: JSON.stringify({ message: 'Rule not found or you do not have permission to delete it' })
+            };
+        }
+
+        // Delete the rule
+        await docClient.send(new DeleteCommand({
+            TableName: RULES_TABLE,
+            Key: {
+                apiKey,
+                ruleId
+            }
+        }));
+
+        return {
+            statusCode: 200,
+            body: JSON.stringify({
+                message: 'Rule deleted successfully',
+                ruleId
             })
         };
 
