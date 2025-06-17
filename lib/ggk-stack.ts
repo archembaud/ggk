@@ -15,7 +15,7 @@ export class GgkStack extends cdk.Stack {
     const adminKey = uuidv4();
 
     // Create Parameter Store parameter
-    new ssm.StringParameter(this, 'AdminKeyParameter', {
+    const adminKeyParameter = new ssm.StringParameter(this, 'AdminKeyParameter', {
       parameterName: 'GGK_ADMIN_KEY',
       stringValue: adminKey,
       description: 'Admin API key for Guid Gate Keeper',
@@ -60,6 +60,7 @@ export class GgkStack extends cdk.Stack {
       code: lambda.Code.fromAsset(path.join(__dirname, '../lambda')),
       environment: {
         RULES_TABLE_NAME: rulesTable.tableName,
+        ADMIN_KEY: adminKey,
       },
     });
 
@@ -69,6 +70,7 @@ export class GgkStack extends cdk.Stack {
       code: lambda.Code.fromAsset(path.join(__dirname, '../lambda')),
       environment: {
         RULES_TABLE_NAME: rulesTable.tableName,
+        ADMIN_KEY: adminKey,
       },
     });
 
@@ -78,6 +80,7 @@ export class GgkStack extends cdk.Stack {
       code: lambda.Code.fromAsset(path.join(__dirname, '../lambda')),
       environment: {
         RULES_TABLE_NAME: rulesTable.tableName,
+        ADMIN_KEY: adminKey,
       },
     });
 
@@ -87,6 +90,7 @@ export class GgkStack extends cdk.Stack {
       code: lambda.Code.fromAsset(path.join(__dirname, '../lambda')),
       environment: {
         RULES_TABLE_NAME: rulesTable.tableName,
+        ADMIN_KEY: adminKey,
       },
     });
 
