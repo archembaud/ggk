@@ -71,6 +71,30 @@ const createResult = await client.createRule({
 });
 ```
 
+### Wildcard Rules
+
+You can also create rules that allow any user to access certain endpoints by using `"*"` as the `userID`:
+
+```typescript
+// Create a wildcard rule that allows any user to access public endpoints
+const createResult = await client.createRule({
+    ruleAPI: "api.example.com",
+    userRules: [
+        {
+            userID: "*", // Wildcard - any user can access
+            allowedEndpoints: [
+                {
+                    path: '/public/data',
+                    methods: 'GET'
+                }
+            ]
+        }
+    ]
+});
+```
+
+When using a wildcard rule, any user ID provided in the `isAllowed` check will be granted access if the path and method match the wildcard rule's allowed endpoints.
+
 To get the details of a rule you created:
 
 ```typescript
@@ -148,6 +172,21 @@ Access check result: {
 }
 ```
 
+For wildcard rules, the response will include an `accessVia` field:
+
+```bash
+Access check result: {
+  message: 'Access allowed',
+  ruleId: '9fafdd85-f3ec-4a5b-8d87-b82d094b9da6',
+  userID: 'any-user-id',
+  url: 'https://api.example.com/public/data',
+  host: 'api.example.com',
+  path: '/public/data',
+  method: 'GET',
+  accessVia: 'wildcard'
+}
+```
+
 If the user was not permitted, a 401 would be returned and caught, so you would see:
 
 ```bash
@@ -200,7 +239,7 @@ Creates a new GGK client instance
 - `getRule(ruleId: string): Promise<{ rule: Rule }>`
 - `updateRule(ruleId: string, request: UpdateRuleRequest): Promise<{ message: string; ruleId: string }>`
 - `deleteRule(ruleId: string): Promise<{ message: string; ruleId: string }>`
-- `isAllowed(ruleId: string, request: IsAllowedRequest): Promise<{ message: string; ruleId: string; userID: string; url: string; host: string; path: string; method: string }>`
+- `isAllowed(ruleId: string, request: IsAllowedRequest): Promise<{ message: string; ruleId: string; userID: string; url: string; host: string; path: string; method: string; accessVia?: 'wildcard' }>`
 
 ### Types
 

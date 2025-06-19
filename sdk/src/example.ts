@@ -138,6 +138,53 @@ async function definedClientDeleteRuleTest(ruleID: string) {
     }
 }
 
+async function wildcardRuleTest(): Promise<string | null> {
+    // Create a client instance with your API key
+    const client = new GGKClient(ADMIN_ID);
+
+    try {
+        // Create a new rule with wildcard user access
+        const createResult = await client.createRule({
+            ruleAPI: "api.example.com",
+            userRules: [
+                {
+                    userID: "*", // Wildcard - any user can access
+                    allowedEndpoints: [
+                        {
+                            path: '/public/data',
+                            methods: 'GET'
+                        }
+                    ]
+                }
+            ]
+        });
+        console.log('Created wildcard rule:', createResult);
+
+        const ruleID = createResult.ruleId;
+
+        // Test with different users - all should be allowed
+        const testUsers = ['user1', 'user2', 'anonymous-user', 'any-user-id'];
+        
+        for (const testUser of testUsers) {
+            try {
+                const isAllowedResult = await client.isAllowed(ruleID, {
+                    userID: testUser,
+                    url: 'https://api.example.com/public/data',
+                    method: 'GET'
+                });
+                console.log(`Access check for ${testUser}:`, isAllowedResult);
+            } catch (error) {
+                console.error(`Error checking access for ${testUser}:`, error);
+            }
+        }
+
+        return ruleID;
+
+    } catch (error) {
+        console.error('Error during wildcard rule demo:', error);
+        return null;
+    }
+}
 
 async function main() {
     // Create a simple rule
@@ -155,6 +202,15 @@ async function main() {
         await definedClientDeleteRuleTest(ruleID)
     }
 
+    // Test wildcard rule functionality
+    console.log('\n=== Testing Wildcard Rule ===');
+    const wildcardRuleID = await wildcardRuleTest();
+    if (wildcardRuleID) {
+        console.log(`Produced wildcard rule ID = ${wildcardRuleID}`);
+        
+        // Clean up the wildcard rule
+        await definedClientDeleteRuleTest(wildcardRuleID);
+    }
 }
 
 // Run the demonstration workflow

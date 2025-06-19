@@ -117,6 +117,7 @@ export class GGKClient {
         host: string;
         path: string;
         method: string;
+        accessVia?: 'wildcard';
     }> {
         const response = await this.client.post(`/rules/${ruleId}/isAllowed`, request);
         return response.data;
