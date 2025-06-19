@@ -30,7 +30,7 @@ export interface UpdateRuleRequest {
 
 export interface IsAllowedRequest {
     userID: string;
-    path: string;
+    url: string;
     method: string;
 }
 
@@ -113,6 +113,8 @@ export class GGKClient {
         message: string;
         ruleId: string;
         userID: string;
+        url: string;
+        host: string;
         path: string;
         method: string;
     }> {

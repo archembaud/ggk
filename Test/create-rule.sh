@@ -11,7 +11,7 @@ API_KEY="92d077c1-31ed-49be-a1ce-dae6c2b07e19"
 
 # The JSON payload for the request
 JSON_PAYLOAD='{
-    "ruleAPI": "test-api",
+    "ruleAPI": "api.example.com",
     "userRules": [
         {
             "userID": "test-user-123",

@@ -397,7 +397,7 @@ export const deleteHandler = async (event: APIGatewayProxyEvent): Promise<APIGat
 
 interface IsAllowedRequest {
     userID: string;
-    path: string;
+    url: string;
     method: string;
 }
 
@@ -421,10 +421,25 @@ export const isAllowedHandler = async (event: APIGatewayProxyEvent): Promise<API
         }
 
         const body = JSON.parse(event.body) as IsAllowedRequest;
-        if (!body.userID || !body.path || !body.method) {
+        if (!body.userID || !body.url || !body.method) {
             return {
                 statusCode: 400,
-                body: JSON.stringify({ message: 'userID, path, and method are required in request body' })
+                body: JSON.stringify({ message: 'userID, url, and method are required in request body' })
+            };
+        }
+
+        // Parse the URL to extract host and path
+        let urlHost: string;
+        let urlPath: string;
+        
+        try {
+            const url = new URL(body.url);
+            urlHost = url.host;
+            urlPath = url.pathname;
+        } catch (error) {
+            return {
+                statusCode: 400,
+                body: JSON.stringify({ message: 'Invalid URL format provided' })
             };
         }
 
@@ -463,6 +478,17 @@ export const isAllowedHandler = async (event: APIGatewayProxyEvent): Promise<API
             };
         }
 
+        // Check if the host matches the ruleAPI
+        if (rule.ruleAPI !== urlHost) {
+            return {
+                statusCode: 401,
+                body: JSON.stringify({ 
+                    message: 'Access denied',
+                    reason: 'Host does not match rule API'
+                })
+            };
+        }
+
         // Find a matching user rule
         const matchingUserRule = userRules.find((userRule: any) => userRule.userID === body.userID);
         if (!matchingUserRule) {
@@ -478,7 +504,7 @@ export const isAllowedHandler = async (event: APIGatewayProxyEvent): Promise<API
         // Check if any of the allowed endpoints match the request
         const matchingEndpoint = matchingUserRule.allowedEndpoints.find((endpoint: any) => {
             // Check if the path matches
-            if (endpoint.path !== body.path) {
+            if (endpoint.path !== urlPath) {
                 return false;
             }
 
@@ -504,7 +530,9 @@ export const isAllowedHandler = async (event: APIGatewayProxyEvent): Promise<API
                 message: 'Access allowed',
                 ruleId,
                 userID: body.userID,
-                path: body.path,
+                url: body.url,
+                host: urlHost,
+                path: urlPath,
                 method: body.method
             })
         };
