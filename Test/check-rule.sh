@@ -18,7 +18,7 @@ echo "Checking good request first"
 # The JSON payload for the request
 JSON_PAYLOAD='{
     "userID": "test-user-123",
-    "path": "/test/path",
+    "url": "https://api.example.com/test/path",
     "method": "GET"
 }'
 
@@ -35,7 +35,7 @@ echo "Checking bad request now..."
 # The JSON payload for the request
 JSON_PAYLOAD='{
     "userID": "test-user-123",
-    "path": "/test/path",
+    "url": "https://api.example.com/test/path",
     "method": "DELETE"
 }'
 
