@@ -491,17 +491,59 @@ export const isAllowedHandler = async (event: APIGatewayProxyEvent): Promise<API
 
         // Find a matching user rule
         const matchingUserRule = userRules.find((userRule: any) => userRule.userID === body.userID);
+        
+        // If no specific user rule found, check for wildcard rule
         if (!matchingUserRule) {
+            const wildcardUserRule = userRules.find((userRule: any) => userRule.userID === "*");
+            if (!wildcardUserRule) {
+                return {
+                    statusCode: 401,
+                    body: JSON.stringify({ 
+                        message: 'Access denied',
+                        reason: 'User not found in rule'
+                    })
+                };
+            }
+            
+            // Use the wildcard rule for validation
+            const matchingEndpoint = wildcardUserRule.allowedEndpoints.find((endpoint: any) => {
+                // Check if the path matches
+                if (endpoint.path !== urlPath) {
+                    return false;
+                }
+
+                // Check if the method is allowed
+                const allowedMethods = endpoint.methods.split(',').map((m: string) => m.trim().toUpperCase());
+                return allowedMethods.includes(body.method.toUpperCase());
+            });
+
+            if (!matchingEndpoint) {
+                return {
+                    statusCode: 401,
+                    body: JSON.stringify({ 
+                        message: 'Access denied',
+                        reason: 'Path or method not allowed for this user'
+                    })
+                };
+            }
+
+            // If we get here, the access is allowed via wildcard rule
             return {
-                statusCode: 401,
-                body: JSON.stringify({ 
-                    message: 'Access denied',
-                    reason: 'User not found in rule'
+                statusCode: 200,
+                body: JSON.stringify({
+                    message: 'Access allowed',
+                    ruleId,
+                    userID: body.userID,
+                    url: body.url,
+                    host: urlHost,
+                    path: urlPath,
+                    method: body.method,
+                    accessVia: 'wildcard'
                 })
             };
         }
 
-        // Check if any of the allowed endpoints match the request
+        // Check if any of the allowed endpoints match the request for the specific user
         const matchingEndpoint = matchingUserRule.allowedEndpoints.find((endpoint: any) => {
             // Check if the path matches
             if (endpoint.path !== urlPath) {
