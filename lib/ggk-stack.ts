@@ -7,16 +7,23 @@ import { Construct } from 'constructs';
 import * as path from 'path';
 import { v4 as uuidv4 } from 'uuid';
 
+export interface GgkStackProps extends cdk.StackProps {
+  stackName?: string;
+}
+
 export class GgkStack extends cdk.Stack {
-  constructor(scope: Construct, id: string, props?: cdk.StackProps) {
+  constructor(scope: Construct, id: string, props?: GgkStackProps) {
     super(scope, id, props);
+
+    // Get stack name for resource naming, default to 'test'
+    const resourcePrefix = (props?.stackName || 'test').toLowerCase();
 
     // Generate a random GUID for the admin key
     const adminKey = uuidv4();
 
     // Create Parameter Store parameter
     const adminKeyParameter = new ssm.StringParameter(this, 'AdminKeyParameter', {
-      parameterName: 'GGK_ADMIN_KEY',
+      parameterName: `${resourcePrefix}-ggk-admin-key`,
       stringValue: adminKey,
       description: 'Admin API key for Guid Gate Keeper',
       tier: ssm.ParameterTier.STANDARD,
@@ -24,6 +31,7 @@ export class GgkStack extends cdk.Stack {
 
     // Create DynamoDB Tables
     const rulesTable = new dynamodb.Table(this, 'RulesRecords', {
+      tableName: `${resourcePrefix}-ggk-rules-table`,
       partitionKey: { name: 'apiKey', type: dynamodb.AttributeType.STRING },
       sortKey: { name: 'ruleId', type: dynamodb.AttributeType.STRING },
       billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
@@ -40,6 +48,7 @@ export class GgkStack extends cdk.Stack {
     });
 
     const apiKeyTable = new dynamodb.Table(this, 'APIKeyRecords', {
+      tableName: `${resourcePrefix}-ggk-api-keys-table`,
       partitionKey: { name: 'apiKeyId', type: dynamodb.AttributeType.STRING },
       sortKey: { name: 'email', type: dynamodb.AttributeType.STRING },
       billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
@@ -49,12 +58,14 @@ export class GgkStack extends cdk.Stack {
 
     // Create Lambda functions
     const helloWorldFunction = new lambda.Function(this, 'HelloWorldFunction', {
+      functionName: `${resourcePrefix}-ggk-hello-world`,
       runtime: lambda.Runtime.NODEJS_18_X,
       handler: 'hello-world.handler',
       code: lambda.Code.fromAsset(path.join(__dirname, '../lambda')),
     });
 
     const rulesPostFunction = new lambda.Function(this, 'RulesPostFunction', {
+      functionName: `${resourcePrefix}-ggk-rules-post`,
       runtime: lambda.Runtime.NODEJS_18_X,
       handler: 'rules.postHandler',
       code: lambda.Code.fromAsset(path.join(__dirname, '../lambda')),
@@ -65,6 +76,7 @@ export class GgkStack extends cdk.Stack {
     });
 
     const rulesGetFunction = new lambda.Function(this, 'RulesGetFunction', {
+      functionName: `${resourcePrefix}-ggk-rules-get`,
       runtime: lambda.Runtime.NODEJS_18_X,
       handler: 'rules.getHandler',
       code: lambda.Code.fromAsset(path.join(__dirname, '../lambda')),
@@ -75,6 +87,7 @@ export class GgkStack extends cdk.Stack {
     });
 
     const rulesPutFunction = new lambda.Function(this, 'RulesPutFunction', {
+      functionName: `${resourcePrefix}-ggk-rules-put`,
       runtime: lambda.Runtime.NODEJS_18_X,
       handler: 'rules.putHandler',
       code: lambda.Code.fromAsset(path.join(__dirname, '../lambda')),
@@ -85,6 +98,7 @@ export class GgkStack extends cdk.Stack {
     });
 
     const rulesDeleteFunction = new lambda.Function(this, 'RulesDeleteFunction', {
+      functionName: `${resourcePrefix}-ggk-rules-delete`,
       runtime: lambda.Runtime.NODEJS_18_X,
       handler: 'rules.deleteHandler',
       code: lambda.Code.fromAsset(path.join(__dirname, '../lambda')),
@@ -95,6 +109,7 @@ export class GgkStack extends cdk.Stack {
     });
 
     const rulesIsAllowedFunction = new lambda.Function(this, 'RulesIsAllowedFunction', {
+      functionName: `${resourcePrefix}-ggk-rules-is-allowed`,
       runtime: lambda.Runtime.NODEJS_18_X,
       handler: 'rules.isAllowedHandler',
       code: lambda.Code.fromAsset(path.join(__dirname, '../lambda')),
@@ -114,7 +129,7 @@ export class GgkStack extends cdk.Stack {
 
     // Create an API Gateway
     const api = new apigateway.RestApi(this, 'GgkApi', {
-      restApiName: 'Guid Gate Keeper API',
+      restApiName: `${resourcePrefix}-ggk-api`,
       description: 'This is the Guid Gate Keeper API with a healthcheck endpoint'
     });
 
