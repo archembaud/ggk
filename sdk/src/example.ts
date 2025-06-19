@@ -52,7 +52,7 @@ async function definedClientRuleCreationTest(): Promise<string | null> {
         // Check if access is allowed
         const isAllowedResult = await client.isAllowed(createResult.ruleId, {
             userID: 'test-user-123',
-            path: '/test/path',
+            url: 'https://some.example.com/test/path',
             method: 'GET'
         });
         console.log('Access check result:', isAllowedResult);
@@ -83,7 +83,7 @@ async function undefinedClientRuleTest(ruleID: string) {
     try {
         const isAllowedResult = await client.isAllowed(ruleID, {
             userID: USER_ID,
-            path: '/test/path',
+            url: 'https://some.example.com/test/path',
             method: 'GET'
         });
         console.log('Access check result:', isAllowedResult);
@@ -115,7 +115,7 @@ async function definedClientRuleUpdateandCheckTest(ruleID: string) {
     try {
         await client.isAllowed(ruleID, {
             userID: USER_ID,
-            path: '/test/path',
+            url: 'https://some.example.com/test/path',
             method: 'GET'
         });
     } catch (error) {

@@ -104,14 +104,14 @@ Anyone who knows the ruleID can use it to check if a 3rd party has access to a w
 
 * Create a body containing information on:
     * Who is attempting to access this resource,
-    * What resource they are attempting to use, and
+    * What resource they are attempting to use (as a complete URL), and
     * How they are intending on using it.
 
     A sample body might be:
 ```bash
  {
     userID: USER_ID,
-    path: '/test/path',
+    url: 'https://some.example.com/test/path',
     method: 'GET'
 }
 ```
@@ -122,7 +122,7 @@ const client = new GGKClient(null);
 try {
     const isAllowedResult = client.isAllowed(ruleID, {
         userID: USER_ID,
-        path: '/test/path',
+        url: 'https://some.example.com/test/path',
         method: 'GET'
     });
     console.log('Access check result:', isAllowedResult);
@@ -141,6 +141,8 @@ Access check result: {
   message: 'Access allowed',
   ruleId: '9fafdd85-f3ec-4a5b-8d87-b82d094b9da6',
   userID: '8fc79383-4e3a-4a1d-9c8c-5817534e61e7',
+  url: 'https://some.example.com/test/path',
+  host: 'some.example.com',
   path: '/test/path',
   method: 'GET'
 }
@@ -198,7 +200,7 @@ Creates a new GGK client instance
 - `getRule(ruleId: string): Promise<{ rule: Rule }>`
 - `updateRule(ruleId: string, request: UpdateRuleRequest): Promise<{ message: string; ruleId: string }>`
 - `deleteRule(ruleId: string): Promise<{ message: string; ruleId: string }>`
-- `isAllowed(ruleId: string, request: IsAllowedRequest): Promise<{ message: string; ruleId: string; userID: string; path: string; method: string }>`
+- `isAllowed(ruleId: string, request: IsAllowedRequest): Promise<{ message: string; ruleId: string; userID: string; url: string; host: string; path: string; method: string }>`
 
 ### Types
 
@@ -233,7 +235,7 @@ interface UpdateRuleRequest {
 
 interface IsAllowedRequest {
     userID: string;
-    path: string;
+    url: string;
     method: string;
 }
 ```
