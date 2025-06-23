@@ -32,6 +32,7 @@ export const postHandler = async (event: APIGatewayProxyEvent): Promise<APIGatew
 
         // Check if this is a new user (first time creating a rule)
         let isNewUser = false;
+        let userRecord = null;
         try {
             const userQueryResult = await docClient.send(new QueryCommand({
                 TableName: API_KEYS_TABLE,
@@ -43,10 +44,30 @@ export const postHandler = async (event: APIGatewayProxyEvent): Promise<APIGatew
 
             if (!userQueryResult.Items || userQueryResult.Items.length === 0) {
                 isNewUser = true;
+            } else {
+                userRecord = userQueryResult.Items[0];
             }
         } catch (error) {
             console.error('Error checking if user exists:', error);
             // Continue with rule creation even if user check fails
+        }
+
+        // For existing users, check if they've reached their rule limit
+        if (!isNewUser && userRecord) {
+            const currentRules = userRecord.currentRules || 0;
+            const maxRules = userRecord.maxRules || 10;
+            
+            if (currentRules >= maxRules) {
+                return {
+                    statusCode: 403,
+                    body: JSON.stringify({ 
+                        message: 'Rule limit exceeded',
+                        currentRules: currentRules,
+                        maxRules: maxRules,
+                        error: 'You have reached your maximum number of rules. Please upgrade your account or delete existing rules.'
+                    })
+                };
+            }
         }
 
         // Generate rule ID using Node's UUID generator
@@ -107,7 +128,7 @@ export const postHandler = async (event: APIGatewayProxyEvent): Promise<APIGatew
                     TableName: API_KEYS_TABLE,
                     Key: {
                         apiKey: apiKey,
-                        email: ''
+                        email: 'NoKnownEmail'
                     },
                     UpdateExpression: 'SET currentRules = currentRules + :inc, dateModified = :dateModified',
                     ExpressionAttributeValues: {
@@ -455,7 +476,7 @@ export const deleteHandler = async (event: APIGatewayProxyEvent): Promise<APIGat
                 TableName: API_KEYS_TABLE,
                 Key: {
                     apiKey: ruleItem.apiKey,
-                    email: ''
+                    email: 'NoKnownEmail'
                 },
                 UpdateExpression: 'SET currentRules = currentRules - :dec, dateModified = :dateModified',
                 ConditionExpression: 'currentRules > :zero',
