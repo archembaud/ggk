@@ -98,4 +98,59 @@ export const getAllUsersHandler = async (event: APIGatewayProxyEvent): Promise<A
             body: JSON.stringify({ message: 'Internal server error' })
         };
     }
+};
+
+export const getUserByApiKeyHandler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
+    try {
+        // Get API key from Authorization header
+        const authHeader = event.headers.Authorization;
+        const ADMIN_KEY = process.env.ADMIN_KEY || '';
+        if (!authHeader) {
+            return {
+                statusCode: 401,
+                body: JSON.stringify({ message: 'Authorization header is required' })
+            };
+        }
+        if (authHeader !== ADMIN_KEY) {
+            return {
+                statusCode: 403,
+                body: JSON.stringify({ message: 'Forbidden: Admin access required' })
+            };
+        }
+        // Get apiKey from path parameters
+        const apiKey = event.pathParameters?.apiKey;
+        if (!apiKey) {
+            return {
+                statusCode: 400,
+                body: JSON.stringify({ message: 'apiKey path parameter is required' })
+            };
+        }
+        // Query the user record from the API keys table
+        const userQueryResult = await docClient.send(new QueryCommand({
+            TableName: API_KEYS_TABLE,
+            KeyConditionExpression: 'apiKey = :apiKey',
+            ExpressionAttributeValues: {
+                ':apiKey': apiKey
+            }
+        }));
+        if (!userQueryResult.Items || userQueryResult.Items.length === 0) {
+            return {
+                statusCode: 404,
+                body: JSON.stringify({ message: 'User not found' })
+            };
+        }
+        // Get the user record
+        const userRecord = userQueryResult.Items[0];
+        // Return all user details for admin
+        return {
+            statusCode: 200,
+            body: JSON.stringify({ user: userRecord })
+        };
+    } catch (error) {
+        console.error('Error:', error);
+        return {
+            statusCode: 500,
+            body: JSON.stringify({ message: 'Internal server error' })
+        };
+    }
 }; 

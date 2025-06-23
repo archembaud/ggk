@@ -131,6 +131,17 @@ export class GgkStack extends cdk.Stack {
       },
     });
 
+    const getUserByApiKeyFunction = new lambda.Function(this, 'GetUserByApiKeyFunction', {
+      functionName: `${resourcePrefix}-ggk-get-user-by-apikey`,
+      runtime: lambda.Runtime.NODEJS_18_X,
+      handler: 'users.getUserByApiKeyHandler',
+      code: lambda.Code.fromAsset(path.join(__dirname, '../lambda')),
+      environment: {
+        API_KEYS_TABLE_NAME: apiKeyTable.tableName,
+        ADMIN_KEY: adminKey,
+      },
+    });
+
     const getAllUsersFunction = new lambda.Function(this, 'GetAllUsersFunction', {
       functionName: `${resourcePrefix}-ggk-get-all-users`,
       runtime: lambda.Runtime.NODEJS_18_X,
@@ -153,6 +164,7 @@ export class GgkStack extends cdk.Stack {
     apiKeyTable.grantReadWriteData(rulesDeleteFunction);
     rulesTable.grantReadData(rulesIsAllowedFunction);
     apiKeyTable.grantReadData(getUserFunction);
+    apiKeyTable.grantReadData(getUserByApiKeyFunction);
     apiKeyTable.grantReadData(getAllUsersFunction);
 
     // Create an API Gateway
@@ -182,6 +194,9 @@ export class GgkStack extends cdk.Stack {
 
     const usersResource = api.root.addResource('users');
     usersResource.addMethod('GET', new apigateway.LambdaIntegration(getAllUsersFunction));
+
+    const userByApiKeyResource = usersResource.addResource('{apiKey}');
+    userByApiKeyResource.addMethod('GET', new apigateway.LambdaIntegration(getUserByApiKeyFunction));
 
     // Output the API endpoint URL
     new cdk.CfnOutput(this, 'ApiEndpoint', {

@@ -12,7 +12,9 @@ if [ -z "$GGK_ADMIN" ]; then
     exit 1
 fi
 
+API_KEY="92d077c1-31ed-49be-a1ce-dae6c2b07e19"
+
 curl -X GET \
     -H "Authorization: $GGK_ADMIN" \
     -H "Content-Type: application/json" \
-    "$GGK_URL/users"
+    "$GGK_URL/users/$API_KEY"
