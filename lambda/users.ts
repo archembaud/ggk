@@ -1,6 +1,6 @@
 import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
-import { DynamoDBDocumentClient, QueryCommand } from '@aws-sdk/lib-dynamodb';
+import { DynamoDBDocumentClient, QueryCommand, ScanCommand } from '@aws-sdk/lib-dynamodb';
 
 const client = new DynamoDBClient({});
 const docClient = DynamoDBDocumentClient.from(client);
@@ -57,6 +57,40 @@ export const getUserHandler = async (event: APIGatewayProxyEvent): Promise<APIGa
             })
         };
 
+    } catch (error) {
+        console.error('Error:', error);
+        return {
+            statusCode: 500,
+            body: JSON.stringify({ message: 'Internal server error' })
+        };
+    }
+};
+
+export const getAllUsersHandler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
+    try {
+        // Get API key from Authorization header
+        const apiKey = event.headers.Authorization;
+        const ADMIN_KEY = process.env.ADMIN_KEY || '';
+        if (!apiKey) {
+            return {
+                statusCode: 401,
+                body: JSON.stringify({ message: 'Authorization header is required' })
+            };
+        }
+        if (apiKey !== ADMIN_KEY) {
+            return {
+                statusCode: 403,
+                body: JSON.stringify({ message: 'Forbidden: Admin access required' })
+            };
+        }
+        // Scan the API keys table for all users
+        const scanResult = await docClient.send(new ScanCommand({
+            TableName: API_KEYS_TABLE
+        }));
+        return {
+            statusCode: 200,
+            body: JSON.stringify({ users: scanResult.Items || [] })
+        };
     } catch (error) {
         console.error('Error:', error);
         return {
