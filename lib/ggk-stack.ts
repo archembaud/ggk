@@ -49,7 +49,7 @@ export class GgkStack extends cdk.Stack {
 
     const apiKeyTable = new dynamodb.Table(this, 'APIKeyRecords', {
       tableName: `${resourcePrefix}-ggk-api-keys-table`,
-      partitionKey: { name: 'apiKeyId', type: dynamodb.AttributeType.STRING },
+      partitionKey: { name: 'apiKey', type: dynamodb.AttributeType.STRING },
       sortKey: { name: 'email', type: dynamodb.AttributeType.STRING },
       billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
       removalPolicy: cdk.RemovalPolicy.DESTROY,
@@ -71,6 +71,7 @@ export class GgkStack extends cdk.Stack {
       code: lambda.Code.fromAsset(path.join(__dirname, '../lambda')),
       environment: {
         RULES_TABLE_NAME: rulesTable.tableName,
+        API_KEYS_TABLE_NAME: apiKeyTable.tableName,
         ADMIN_KEY: adminKey,
       },
     });
@@ -104,6 +105,7 @@ export class GgkStack extends cdk.Stack {
       code: lambda.Code.fromAsset(path.join(__dirname, '../lambda')),
       environment: {
         RULES_TABLE_NAME: rulesTable.tableName,
+        API_KEYS_TABLE_NAME: apiKeyTable.tableName,
         ADMIN_KEY: adminKey,
       },
     });
@@ -122,9 +124,11 @@ export class GgkStack extends cdk.Stack {
     rulesTable.grantReadWriteData(helloWorldFunction);
     apiKeyTable.grantReadWriteData(helloWorldFunction);
     rulesTable.grantReadWriteData(rulesPostFunction);
+    apiKeyTable.grantReadWriteData(rulesPostFunction);
     rulesTable.grantReadData(rulesGetFunction);
     rulesTable.grantReadWriteData(rulesPutFunction);
     rulesTable.grantReadWriteData(rulesDeleteFunction);
+    apiKeyTable.grantReadWriteData(rulesDeleteFunction);
     rulesTable.grantReadData(rulesIsAllowedFunction);
 
     // Create an API Gateway
