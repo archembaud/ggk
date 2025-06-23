@@ -6,6 +6,7 @@ import { randomUUID } from 'crypto';
 const client = new DynamoDBClient({});
 const docClient = DynamoDBDocumentClient.from(client);
 const RULES_TABLE = process.env.RULES_TABLE_NAME || '';
+const API_KEYS_TABLE = process.env.API_KEYS_TABLE_NAME || '';
 const ADMIN_KEY = process.env.ADMIN_KEY || '';
 
 export const postHandler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
@@ -29,6 +30,46 @@ export const postHandler = async (event: APIGatewayProxyEvent): Promise<APIGatew
             };
         }
 
+        // Check if this is a new user (first time creating a rule)
+        let isNewUser = false;
+        let userRecord = null;
+        try {
+            const userQueryResult = await docClient.send(new QueryCommand({
+                TableName: API_KEYS_TABLE,
+                KeyConditionExpression: 'apiKey = :apiKey',
+                ExpressionAttributeValues: {
+                    ':apiKey': apiKey
+                }
+            }));
+
+            if (!userQueryResult.Items || userQueryResult.Items.length === 0) {
+                isNewUser = true;
+            } else {
+                userRecord = userQueryResult.Items[0];
+            }
+        } catch (error) {
+            console.error('Error checking if user exists:', error);
+            // Continue with rule creation even if user check fails
+        }
+
+        // For existing users, check if they've reached their rule limit
+        if (!isNewUser && userRecord) {
+            const currentRules = userRecord.currentRules || 0;
+            const maxRules = userRecord.maxRules || 10;
+            
+            if (currentRules >= maxRules) {
+                return {
+                    statusCode: 403,
+                    body: JSON.stringify({ 
+                        message: 'Rule limit exceeded',
+                        currentRules: currentRules,
+                        maxRules: maxRules,
+                        error: 'You have reached your maximum number of rules. Please upgrade your account or delete existing rules.'
+                    })
+                };
+            }
+        }
+
         // Generate rule ID using Node's UUID generator
         const ruleId = randomUUID();
         const timestamp = Date.now();
@@ -49,6 +90,57 @@ export const postHandler = async (event: APIGatewayProxyEvent): Promise<APIGatew
             TableName: RULES_TABLE,
             Item: item
         }));
+
+        // If this is a new user, create a user record
+        if (isNewUser) {
+            try {
+                const userItem = {
+                    apiKey: apiKey,
+                    email: 'NoKnownEmail', // Can't provide an empty string
+                    apiKeyEnabled: true,
+                    maxMonthlyRuleChecks: 100,
+                    maxRules: 10,
+                    currentMonthlyRuleChecks: 0,
+                    currentRules: 1,
+                    accountType: 'GKK_FREE',
+                    firstName: '',
+                    lastName: '',
+                    billingAddress: '',
+                    billingPostcode: -1,
+                    accountBalance: 0.0,
+                    paymentMethod: '',
+                    dateCreated: timestamp,
+                    dateModified: timestamp
+                };
+
+                await docClient.send(new PutCommand({
+                    TableName: API_KEYS_TABLE,
+                    Item: userItem
+                }));
+            } catch (error) {
+                console.error('Error creating user record:', error);
+                // Don't fail the rule creation if user record creation fails
+            }
+        } else {
+            // If existing user, increment currentRules count
+            try {
+                await docClient.send(new UpdateCommand({
+                    TableName: API_KEYS_TABLE,
+                    Key: {
+                        apiKey: apiKey,
+                        email: 'NoKnownEmail'
+                    },
+                    UpdateExpression: 'SET currentRules = currentRules + :inc, dateModified = :dateModified',
+                    ExpressionAttributeValues: {
+                        ':inc': 1,
+                        ':dateModified': timestamp
+                    }
+                }));
+            } catch (error) {
+                console.error('Error updating user rule count:', error);
+                // Don't fail the rule creation if user update fails
+            }
+        }
 
         return {
             statusCode: 201,
@@ -377,6 +469,27 @@ export const deleteHandler = async (event: APIGatewayProxyEvent): Promise<APIGat
                 ruleId
             }
         }));
+
+        // Decrement the currentRules count for the user
+        try {
+            await docClient.send(new UpdateCommand({
+                TableName: API_KEYS_TABLE,
+                Key: {
+                    apiKey: ruleItem.apiKey,
+                    email: 'NoKnownEmail'
+                },
+                UpdateExpression: 'SET currentRules = currentRules - :dec, dateModified = :dateModified',
+                ConditionExpression: 'currentRules > :zero',
+                ExpressionAttributeValues: {
+                    ':dec': 1,
+                    ':dateModified': Date.now(),
+                    ':zero': 0
+                }
+            }));
+        } catch (error) {
+            console.error('Error updating user rule count after deletion:', error);
+            // Don't fail the rule deletion if user update fails
+        }
 
         return {
             statusCode: 200,

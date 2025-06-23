@@ -49,7 +49,7 @@ export class GgkStack extends cdk.Stack {
 
     const apiKeyTable = new dynamodb.Table(this, 'APIKeyRecords', {
       tableName: `${resourcePrefix}-ggk-api-keys-table`,
-      partitionKey: { name: 'apiKeyId', type: dynamodb.AttributeType.STRING },
+      partitionKey: { name: 'apiKey', type: dynamodb.AttributeType.STRING },
       sortKey: { name: 'email', type: dynamodb.AttributeType.STRING },
       billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
       removalPolicy: cdk.RemovalPolicy.DESTROY,
@@ -71,6 +71,7 @@ export class GgkStack extends cdk.Stack {
       code: lambda.Code.fromAsset(path.join(__dirname, '../lambda')),
       environment: {
         RULES_TABLE_NAME: rulesTable.tableName,
+        API_KEYS_TABLE_NAME: apiKeyTable.tableName,
         ADMIN_KEY: adminKey,
       },
     });
@@ -104,6 +105,7 @@ export class GgkStack extends cdk.Stack {
       code: lambda.Code.fromAsset(path.join(__dirname, '../lambda')),
       environment: {
         RULES_TABLE_NAME: rulesTable.tableName,
+        API_KEYS_TABLE_NAME: apiKeyTable.tableName,
         ADMIN_KEY: adminKey,
       },
     });
@@ -118,14 +120,78 @@ export class GgkStack extends cdk.Stack {
       },
     });
 
+    const getUserFunction = new lambda.Function(this, 'GetUserFunction', {
+      functionName: `${resourcePrefix}-ggk-get-user`,
+      runtime: lambda.Runtime.NODEJS_18_X,
+      handler: 'users.getUserHandler',
+      code: lambda.Code.fromAsset(path.join(__dirname, '../lambda')),
+      environment: {
+        API_KEYS_TABLE_NAME: apiKeyTable.tableName,
+        ADMIN_KEY: adminKey,
+      },
+    });
+
+    const getUserByApiKeyFunction = new lambda.Function(this, 'GetUserByApiKeyFunction', {
+      functionName: `${resourcePrefix}-ggk-get-user-by-apikey`,
+      runtime: lambda.Runtime.NODEJS_18_X,
+      handler: 'users.getUserByApiKeyHandler',
+      code: lambda.Code.fromAsset(path.join(__dirname, '../lambda')),
+      environment: {
+        API_KEYS_TABLE_NAME: apiKeyTable.tableName,
+        ADMIN_KEY: adminKey,
+      },
+    });
+
+    const getAllUsersFunction = new lambda.Function(this, 'GetAllUsersFunction', {
+      functionName: `${resourcePrefix}-ggk-get-all-users`,
+      runtime: lambda.Runtime.NODEJS_18_X,
+      handler: 'users.getAllUsersHandler',
+      code: lambda.Code.fromAsset(path.join(__dirname, '../lambda')),
+      environment: {
+        API_KEYS_TABLE_NAME: apiKeyTable.tableName,
+        ADMIN_KEY: adminKey,
+      },
+    });
+
+    const putUserByApiKeyFunction = new lambda.Function(this, 'PutUserByApiKeyFunction', {
+      functionName: `${resourcePrefix}-ggk-put-user-by-apikey`,
+      runtime: lambda.Runtime.NODEJS_18_X,
+      handler: 'users.putUserByApiKeyHandler',
+      code: lambda.Code.fromAsset(path.join(__dirname, '../lambda')),
+      environment: {
+        API_KEYS_TABLE_NAME: apiKeyTable.tableName,
+        ADMIN_KEY: adminKey,
+      },
+    });
+
+    const deleteUserByApiKeyFunction = new lambda.Function(this, 'DeleteUserByApiKeyFunction', {
+      functionName: `${resourcePrefix}-ggk-delete-user-by-apikey`,
+      runtime: lambda.Runtime.NODEJS_18_X,
+      handler: 'users.deleteUserByApiKeyHandler',
+      code: lambda.Code.fromAsset(path.join(__dirname, '../lambda')),
+      environment: {
+        API_KEYS_TABLE_NAME: apiKeyTable.tableName,
+        RULES_TABLE_NAME: rulesTable.tableName,
+        ADMIN_KEY: adminKey,
+      },
+    });
+
     // Grant Lambda functions access to the DynamoDB tables
     rulesTable.grantReadWriteData(helloWorldFunction);
     apiKeyTable.grantReadWriteData(helloWorldFunction);
     rulesTable.grantReadWriteData(rulesPostFunction);
+    apiKeyTable.grantReadWriteData(rulesPostFunction);
     rulesTable.grantReadData(rulesGetFunction);
     rulesTable.grantReadWriteData(rulesPutFunction);
     rulesTable.grantReadWriteData(rulesDeleteFunction);
+    apiKeyTable.grantReadWriteData(rulesDeleteFunction);
     rulesTable.grantReadData(rulesIsAllowedFunction);
+    apiKeyTable.grantReadData(getUserFunction);
+    apiKeyTable.grantReadData(getUserByApiKeyFunction);
+    apiKeyTable.grantReadData(getAllUsersFunction);
+    apiKeyTable.grantReadWriteData(putUserByApiKeyFunction);
+    apiKeyTable.grantReadWriteData(deleteUserByApiKeyFunction);
+    rulesTable.grantReadWriteData(deleteUserByApiKeyFunction);
 
     // Create an API Gateway
     const api = new apigateway.RestApi(this, 'GgkApi', {
@@ -148,6 +214,17 @@ export class GgkStack extends cdk.Stack {
 
     const isAllowedResource = ruleResource.addResource('isAllowed');
     isAllowedResource.addMethod('POST', new apigateway.LambdaIntegration(rulesIsAllowedFunction));
+
+    const userResource = api.root.addResource('user');
+    userResource.addMethod('GET', new apigateway.LambdaIntegration(getUserFunction));
+
+    const usersResource = api.root.addResource('users');
+    usersResource.addMethod('GET', new apigateway.LambdaIntegration(getAllUsersFunction));
+
+    const userByApiKeyResource = usersResource.addResource('{apiKey}');
+    userByApiKeyResource.addMethod('GET', new apigateway.LambdaIntegration(getUserByApiKeyFunction));
+    userByApiKeyResource.addMethod('PUT', new apigateway.LambdaIntegration(putUserByApiKeyFunction));
+    userByApiKeyResource.addMethod('DELETE', new apigateway.LambdaIntegration(deleteUserByApiKeyFunction));
 
     // Output the API endpoint URL
     new cdk.CfnOutput(this, 'ApiEndpoint', {
