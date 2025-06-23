@@ -122,4 +122,44 @@ export class GGKClient {
         const response = await this.client.post(`/rules/${ruleId}/isAllowed`, request);
         return response.data;
     }
+
+    /**
+     * Fetch all users (admin only)
+     * @returns Array of users
+     */
+    async getAllUsers(): Promise<{ users: any[] }> {
+        const response = await this.client.get('/users');
+        return response.data;
+    }
+
+    /**
+     * Fetch a specific user by apiKey (admin only)
+     * @param apiKey The apiKey of the user to fetch
+     * @returns The user record
+     */
+    async getUserByApiKey(apiKey: string): Promise<{ user: any }> {
+        const response = await this.client.get(`/users/${apiKey}`);
+        return response.data;
+    }
+
+    /**
+     * Update a user by apiKey (admin only)
+     * @param apiKey The apiKey of the user to update
+     * @param updates The fields to update
+     * @returns The updated user record
+     */
+    async updateUserByApiKey(apiKey: string, updates: Record<string, any>): Promise<{ user: any }> {
+        const response = await this.client.put(`/users/${apiKey}`, updates);
+        return response.data;
+    }
+
+    /**
+     * Delete a user by apiKey (admin only)
+     * @param apiKey The apiKey of the user to delete
+     * @returns Deletion summary
+     */
+    async deleteUserByApiKey(apiKey: string): Promise<{ message: string; deletedRulesCount: number }> {
+        const response = await this.client.delete(`/users/${apiKey}`);
+        return response.data;
+    }
 } 

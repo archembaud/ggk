@@ -5,7 +5,15 @@ import axios from 'axios';
 // Load environment variables
 dotenv.config();
 
-const ADMIN_ID = '92d077c1-31ed-49be-a1ce-dae6c2b07e19'
+const ADMIN_ID = process.env.GGK_ADMIN || null
+
+
+if (!ADMIN_ID) {
+    console.error('ADMIN_ID is not set')
+    process.exit(1)
+}
+
+//const ADMIN_ID = '92d077c1-31ed-49be-a1ce-dae6c2b07e19'
 const USER_ID = '8fc79383-4e3a-4a1d-9c8c-5817534e61e7'
 
 async function definedClientRuleCreationTest(): Promise<string | null> {
@@ -186,6 +194,33 @@ async function wildcardRuleTest(): Promise<string | null> {
     }
 }
 
+async function adminUserManagementDemo() {
+    const adminClient = new GGKClient(ADMIN_ID);
+    try {
+        // Fetch all users
+        const allUsers = await adminClient.getAllUsers();
+        console.log('All users:', allUsers);
+        if (!allUsers.users || allUsers.users.length === 0) {
+            console.log('No users found to demonstrate further admin actions.');
+            return;
+        }
+        // Pick the first user for demonstration
+        const demoUser = allUsers.users[0];
+        const demoApiKey = demoUser.apiKey;
+        // Fetch a specific user
+        const userDetails = await adminClient.getUserByApiKey(demoApiKey);
+        console.log(`User details for apiKey ${demoApiKey}:`, userDetails);
+        // Update the user (e.g., increase the max number of rules to 100)
+        const updatedUser = await adminClient.updateUserByApiKey(demoApiKey, { maxRules:100 });
+        console.log(`Updated user for apiKey ${demoApiKey}:`, updatedUser);
+        // Delete the user
+        const deleteResult = await adminClient.deleteUserByApiKey(demoApiKey);
+        console.log(`Deleted user for apiKey ${demoApiKey}:`, deleteResult);
+    } catch (error) {
+        console.error('Error during admin user management demo:', error);
+    }
+}
+
 async function main() {
     // Create a simple rule
     const ruleID = await definedClientRuleCreationTest()
@@ -211,6 +246,10 @@ async function main() {
         // Clean up the wildcard rule
         await definedClientDeleteRuleTest(wildcardRuleID);
     }
+
+    // Admin user management demo
+    console.log('\n=== Admin User Management Demo ===');
+    await adminUserManagementDemo();
 }
 
 // Run the demonstration workflow
