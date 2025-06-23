@@ -1,6 +1,6 @@
 import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
-import { DynamoDBDocumentClient, QueryCommand, ScanCommand } from '@aws-sdk/lib-dynamodb';
+import { DynamoDBDocumentClient, QueryCommand, ScanCommand, UpdateCommand } from '@aws-sdk/lib-dynamodb';
 
 const client = new DynamoDBClient({});
 const docClient = DynamoDBDocumentClient.from(client);
@@ -145,6 +145,97 @@ export const getUserByApiKeyHandler = async (event: APIGatewayProxyEvent): Promi
         return {
             statusCode: 200,
             body: JSON.stringify({ user: userRecord })
+        };
+    } catch (error) {
+        console.error('Error:', error);
+        return {
+            statusCode: 500,
+            body: JSON.stringify({ message: 'Internal server error' })
+        };
+    }
+};
+
+export const putUserByApiKeyHandler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
+    try {
+        // Get API key from Authorization header
+        const authHeader = event.headers.Authorization;
+        const ADMIN_KEY = process.env.ADMIN_KEY || '';
+        if (!authHeader) {
+            return {
+                statusCode: 401,
+                body: JSON.stringify({ message: 'Authorization header is required' })
+            };
+        }
+        if (authHeader !== ADMIN_KEY) {
+            return {
+                statusCode: 403,
+                body: JSON.stringify({ message: 'Forbidden: Admin access required' })
+            };
+        }
+        // Get apiKey from path parameters
+        const apiKey = event.pathParameters?.apiKey;
+        if (!apiKey) {
+            return {
+                statusCode: 400,
+                body: JSON.stringify({ message: 'apiKey path parameter is required' })
+            };
+        }
+        // Parse request body
+        const body = event.body ? JSON.parse(event.body) : {};
+        if (Object.keys(body).length === 0) {
+            return {
+                statusCode: 400,
+                body: JSON.stringify({ message: 'Request body must include at least one field to update' })
+            };
+        }
+        // Build update expression
+        const updateExpressions: string[] = [];
+        const expressionAttributeValues: Record<string, any> = {
+            ':dateModified': Date.now()
+        };
+        for (const [key, value] of Object.entries(body)) {
+            updateExpressions.push(`${key} = :${key}`);
+            expressionAttributeValues[`:${key}`] = value;
+        }
+        updateExpressions.push('dateModified = :dateModified');
+        // Query for the user to get the email (needed for the key)
+        const userQueryResult = await docClient.send(new QueryCommand({
+            TableName: API_KEYS_TABLE,
+            KeyConditionExpression: 'apiKey = :apiKey',
+            ExpressionAttributeValues: {
+                ':apiKey': apiKey
+            }
+        }));
+        if (!userQueryResult.Items || userQueryResult.Items.length === 0) {
+            return {
+                statusCode: 404,
+                body: JSON.stringify({ message: 'User not found' })
+            };
+        }
+        const userRecord = userQueryResult.Items[0];
+        // Update the user record
+        await docClient.send(new UpdateCommand({
+            TableName: API_KEYS_TABLE,
+            Key: {
+                apiKey: userRecord.apiKey,
+                email: userRecord.email
+            },
+            UpdateExpression: `SET ${updateExpressions.join(', ')}`,
+            ExpressionAttributeValues: expressionAttributeValues,
+            ReturnValues: 'ALL_NEW'
+        }));
+        // Query again to get the updated record
+        const updatedUserQuery = await docClient.send(new QueryCommand({
+            TableName: API_KEYS_TABLE,
+            KeyConditionExpression: 'apiKey = :apiKey',
+            ExpressionAttributeValues: {
+                ':apiKey': apiKey
+            }
+        }));
+        const updatedUser = updatedUserQuery.Items ? updatedUserQuery.Items[0] : null;
+        return {
+            statusCode: 200,
+            body: JSON.stringify({ user: updatedUser })
         };
     } catch (error) {
         console.error('Error:', error);

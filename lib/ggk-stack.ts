@@ -153,6 +153,17 @@ export class GgkStack extends cdk.Stack {
       },
     });
 
+    const putUserByApiKeyFunction = new lambda.Function(this, 'PutUserByApiKeyFunction', {
+      functionName: `${resourcePrefix}-ggk-put-user-by-apikey`,
+      runtime: lambda.Runtime.NODEJS_18_X,
+      handler: 'users.putUserByApiKeyHandler',
+      code: lambda.Code.fromAsset(path.join(__dirname, '../lambda')),
+      environment: {
+        API_KEYS_TABLE_NAME: apiKeyTable.tableName,
+        ADMIN_KEY: adminKey,
+      },
+    });
+
     // Grant Lambda functions access to the DynamoDB tables
     rulesTable.grantReadWriteData(helloWorldFunction);
     apiKeyTable.grantReadWriteData(helloWorldFunction);
@@ -166,6 +177,7 @@ export class GgkStack extends cdk.Stack {
     apiKeyTable.grantReadData(getUserFunction);
     apiKeyTable.grantReadData(getUserByApiKeyFunction);
     apiKeyTable.grantReadData(getAllUsersFunction);
+    apiKeyTable.grantReadWriteData(putUserByApiKeyFunction);
 
     // Create an API Gateway
     const api = new apigateway.RestApi(this, 'GgkApi', {
@@ -197,6 +209,7 @@ export class GgkStack extends cdk.Stack {
 
     const userByApiKeyResource = usersResource.addResource('{apiKey}');
     userByApiKeyResource.addMethod('GET', new apigateway.LambdaIntegration(getUserByApiKeyFunction));
+    userByApiKeyResource.addMethod('PUT', new apigateway.LambdaIntegration(putUserByApiKeyFunction));
 
     // Output the API endpoint URL
     new cdk.CfnOutput(this, 'ApiEndpoint', {
