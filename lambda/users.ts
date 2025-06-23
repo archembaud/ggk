@@ -1,6 +1,6 @@
 import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
-import { DynamoDBDocumentClient, QueryCommand, ScanCommand, UpdateCommand } from '@aws-sdk/lib-dynamodb';
+import { DynamoDBDocumentClient, QueryCommand, ScanCommand, UpdateCommand, DeleteCommand } from '@aws-sdk/lib-dynamodb';
 
 const client = new DynamoDBClient({});
 const docClient = DynamoDBDocumentClient.from(client);
@@ -236,6 +236,90 @@ export const putUserByApiKeyHandler = async (event: APIGatewayProxyEvent): Promi
         return {
             statusCode: 200,
             body: JSON.stringify({ user: updatedUser })
+        };
+    } catch (error) {
+        console.error('Error:', error);
+        return {
+            statusCode: 500,
+            body: JSON.stringify({ message: 'Internal server error' })
+        };
+    }
+};
+
+export const deleteUserByApiKeyHandler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
+    try {
+        // Get API key from Authorization header
+        const authHeader = event.headers.Authorization;
+        const ADMIN_KEY = process.env.ADMIN_KEY || '';
+        const RULES_TABLE = process.env.RULES_TABLE_NAME || '';
+        if (!authHeader) {
+            return {
+                statusCode: 401,
+                body: JSON.stringify({ message: 'Authorization header is required' })
+            };
+        }
+        if (authHeader !== ADMIN_KEY) {
+            return {
+                statusCode: 403,
+                body: JSON.stringify({ message: 'Forbidden: Admin access required' })
+            };
+        }
+        // Get apiKey from path parameters
+        const apiKey = event.pathParameters?.apiKey;
+        if (!apiKey) {
+            return {
+                statusCode: 400,
+                body: JSON.stringify({ message: 'apiKey path parameter is required' })
+            };
+        }
+        // Query for all rules for this user
+        const rulesQuery = await docClient.send(new QueryCommand({
+            TableName: RULES_TABLE,
+            KeyConditionExpression: 'apiKey = :apiKey',
+            ExpressionAttributeValues: {
+                ':apiKey': apiKey
+            }
+        }));
+        const rules = rulesQuery.Items || [];
+        // Delete all rules for this user
+        for (const rule of rules) {
+            await docClient.send(new DeleteCommand({
+                TableName: RULES_TABLE,
+                Key: {
+                    apiKey: rule.apiKey,
+                    ruleId: rule.ruleId
+                }
+            }));
+        }
+        // Query for the user to get the email (needed for the key)
+        const userQueryResult = await docClient.send(new QueryCommand({
+            TableName: API_KEYS_TABLE,
+            KeyConditionExpression: 'apiKey = :apiKey',
+            ExpressionAttributeValues: {
+                ':apiKey': apiKey
+            }
+        }));
+        if (!userQueryResult.Items || userQueryResult.Items.length === 0) {
+            return {
+                statusCode: 404,
+                body: JSON.stringify({ message: 'User not found' })
+            };
+        }
+        const userRecord = userQueryResult.Items[0];
+        // Delete the user record
+        await docClient.send(new DeleteCommand({
+            TableName: API_KEYS_TABLE,
+            Key: {
+                apiKey: userRecord.apiKey,
+                email: userRecord.email
+            }
+        }));
+        return {
+            statusCode: 200,
+            body: JSON.stringify({
+                message: 'User and all associated rules deleted',
+                deletedRulesCount: rules.length
+            })
         };
     } catch (error) {
         console.error('Error:', error);
