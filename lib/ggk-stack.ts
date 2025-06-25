@@ -6,9 +6,14 @@ import * as ssm from 'aws-cdk-lib/aws-ssm';
 import { Construct } from 'constructs';
 import * as path from 'path';
 import { v4 as uuidv4 } from 'uuid';
+import * as route53 from 'aws-cdk-lib/aws-route53';
+import * as acm from 'aws-cdk-lib/aws-certificatemanager';
+import * as route53_targets from 'aws-cdk-lib/aws-route53-targets';
 
 export interface GgkStackProps extends cdk.StackProps {
   stackName?: string;
+  hostedZoneDomain?: string; // e.g., 'archembaud.com'
+  subdomainPrefix?: string;  // e.g., 'test' (defaults to stackName)
 }
 
 export class GgkStack extends cdk.Stack {
@@ -17,6 +22,9 @@ export class GgkStack extends cdk.Stack {
 
     // Get stack name for resource naming, default to 'test'
     const resourcePrefix = (props?.stackName || 'test').toLowerCase();
+    const hostedZoneDomain = props?.hostedZoneDomain || 'archembaud.com';
+    const subdomainPrefix = props?.subdomainPrefix || resourcePrefix;
+    const fullDomain = `${subdomainPrefix}.ggk.${hostedZoneDomain}`;
 
     // Generate a random GUID for the admin key
     const adminKey = uuidv4();
@@ -225,6 +233,40 @@ export class GgkStack extends cdk.Stack {
     userByApiKeyResource.addMethod('GET', new apigateway.LambdaIntegration(getUserByApiKeyFunction));
     userByApiKeyResource.addMethod('PUT', new apigateway.LambdaIntegration(putUserByApiKeyFunction));
     userByApiKeyResource.addMethod('DELETE', new apigateway.LambdaIntegration(deleteUserByApiKeyFunction));
+
+    // Lookup the hosted zone
+    const hostedZone = route53.HostedZone.fromLookup(this, 'HostedZone', {
+      domainName: hostedZoneDomain,
+    });
+
+    // Create ACM certificate in us-east-1 for API Gateway
+    const certificate = new acm.DnsValidatedCertificate(this, 'ApiCertificate', {
+      domainName: fullDomain,
+      hostedZone,
+      region: 'us-east-1',
+    });
+
+    // Create API Gateway custom domain
+    const domainName = new apigateway.DomainName(this, 'CustomDomain', {
+      domainName: fullDomain,
+      certificate,
+      endpointType: apigateway.EndpointType.EDGE,
+      securityPolicy: apigateway.SecurityPolicy.TLS_1_2,
+    });
+
+    // Map custom domain to API Gateway stage
+    new apigateway.BasePathMapping(this, 'BasePathMapping', {
+      domainName,
+      restApi: api,
+      basePath: '',
+    });
+
+    // Create Route53 alias record for the custom domain
+    new route53.ARecord(this, 'ApiAliasRecord', {
+      zone: hostedZone,
+      recordName: fullDomain,
+      target: route53.RecordTarget.fromAlias(new route53_targets.ApiGatewayDomain(domainName)),
+    });
 
     // Output the API endpoint URL
     new cdk.CfnOutput(this, 'ApiEndpoint', {
