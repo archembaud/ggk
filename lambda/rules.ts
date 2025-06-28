@@ -620,8 +620,8 @@ export const isAllowedHandler = async (event: APIGatewayProxyEvent): Promise<API
             
             // Use the wildcard rule for validation
             const matchingEndpoint = wildcardUserRule.allowedEndpoints.find((endpoint: any) => {
-                // Check if the path matches
-                if (endpoint.path !== urlPath) {
+                // Check if the path starts with the rule path (more flexible matching)
+                if (!urlPath.startsWith(endpoint.path)) {
                     return false;
                 }
 
@@ -658,8 +658,8 @@ export const isAllowedHandler = async (event: APIGatewayProxyEvent): Promise<API
 
         // Check if any of the allowed endpoints match the request for the specific user
         const matchingEndpoint = matchingUserRule.allowedEndpoints.find((endpoint: any) => {
-            // Check if the path matches
-            if (endpoint.path !== urlPath) {
+            // Check if the path starts with the rule path (more flexible matching)
+            if (!urlPath.startsWith(endpoint.path)) {
                 return false;
             }
 
