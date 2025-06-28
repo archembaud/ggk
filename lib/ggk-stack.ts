@@ -239,18 +239,17 @@ export class GgkStack extends cdk.Stack {
       domainName: hostedZoneDomain,
     });
 
-    // Create ACM certificate in us-east-1 for API Gateway
-    const certificate = new acm.DnsValidatedCertificate(this, 'ApiCertificate', {
+    // Create ACM certificate for API Gateway (regional endpoint allows same-region certificate)
+    const certificate = new acm.Certificate(this, 'ApiCertificate', {
       domainName: fullDomain,
-      hostedZone,
-      region: 'us-east-1',
+      validation: acm.CertificateValidation.fromDns(hostedZone),
     });
 
     // Create API Gateway custom domain
     const domainName = new apigateway.DomainName(this, 'CustomDomain', {
       domainName: fullDomain,
       certificate,
-      endpointType: apigateway.EndpointType.EDGE,
+      endpointType: apigateway.EndpointType.REGIONAL,
       securityPolicy: apigateway.SecurityPolicy.TLS_1_2,
     });
 
