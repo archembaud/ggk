@@ -273,6 +273,12 @@ export class GgkStack extends cdk.Stack {
       description: 'The URL of the API endpoint',
     });
 
+    // Output the custom domain HTTP URL
+    new cdk.CfnOutput(this, 'ApiAliasUrl', {
+      value: `https://${fullDomain}`,
+      description: 'The HTTP URL of the API custom domain',
+    });
+
     // Output the DynamoDB table names
     new cdk.CfnOutput(this, 'RulesTableName', {
       value: rulesTable.tableName,
