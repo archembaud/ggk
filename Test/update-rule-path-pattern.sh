@@ -25,7 +25,6 @@ JSON_PAYLOAD='{
             "userID": "test-user-123",
             "allowedEndpoints": [
                 {
-                    "path": "/test/path",
                     "methods": "GET,POST",
                     "path_pattern": "/api/v2/users/*"
                 }

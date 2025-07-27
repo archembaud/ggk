@@ -3,8 +3,9 @@ import axios, { AxiosInstance } from 'axios';
 export interface UserRule {
     userID: string;
     allowedEndpoints: {
-        path: string;
+        path?: string;
         methods: string;
+        path_pattern?: string;
     }[];
 }
 

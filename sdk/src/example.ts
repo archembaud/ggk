@@ -22,7 +22,7 @@ async function definedClientRuleCreationTest(): Promise<string | null> {
     const client = new GGKClient(ADMIN_ID);
 
     try {
-        // Create a new rule
+        // Create a new rule with both path and path_pattern examples
         const createResult = await client.createRule({
             ruleAPI: "some.example.com",
             userRules: [
@@ -32,6 +32,14 @@ async function definedClientRuleCreationTest(): Promise<string | null> {
                         {
                             path: '/test/path',
                             methods: 'GET,POST'
+                        },
+                        {
+                            methods: 'GET,PUT,DELETE',
+                            path_pattern: '/api/v1/users/*'
+                        },
+                        {
+                            methods: 'GET',
+                            path_pattern: '/api/v1/products/*'
                         }
                     ]
                 }
@@ -151,7 +159,7 @@ async function wildcardRuleTest(): Promise<string | null> {
     const client = new GGKClient(ADMIN_ID);
 
     try {
-        // Create a new rule with wildcard user access
+        // Create a new rule with wildcard user access using path_pattern
         const createResult = await client.createRule({
             ruleAPI: "api.example.com",
             userRules: [
@@ -159,7 +167,11 @@ async function wildcardRuleTest(): Promise<string | null> {
                     userID: "*", // Wildcard - any user can access
                     allowedEndpoints: [
                         {
-                            path: '/public/data',
+                            methods: 'GET',
+                            path_pattern: '/public/*'
+                        },
+                        {
+                            path: '/api/health',
                             methods: 'GET'
                         }
                     ]
@@ -170,19 +182,20 @@ async function wildcardRuleTest(): Promise<string | null> {
 
         const ruleID = createResult.ruleId;
 
-        // Test with different users - all should be allowed
-        const testUsers = ['user1', 'user2', 'anonymous-user', 'any-user-id'];
+        // Test with different users and paths - all should be allowed
+        const testCases = [
+            { userID: 'user1', url: 'https://api.example.com/public/data', method: 'GET' },
+            { userID: 'user2', url: 'https://api.example.com/public/users', method: 'GET' },
+            { userID: 'anonymous-user', url: 'https://api.example.com/api/health', method: 'GET' },
+            { userID: 'any-user-id', url: 'https://api.example.com/public/anything', method: 'GET' }
+        ];
         
-        for (const testUser of testUsers) {
+        for (const testCase of testCases) {
             try {
-                const isAllowedResult = await client.isAllowed(ruleID, {
-                    userID: testUser,
-                    url: 'https://api.example.com/public/data',
-                    method: 'GET'
-                });
-                console.log(`Access check for ${testUser}:`, isAllowedResult);
+                const isAllowedResult = await client.isAllowed(ruleID, testCase);
+                console.log(`Access check for ${testCase.userID} on ${testCase.url}:`, isAllowedResult);
             } catch (error) {
-                console.error(`Error checking access for ${testUser}:`, error);
+                console.error(`Error checking access for ${testCase.userID}:`, error);
             }
         }
 
@@ -190,6 +203,78 @@ async function wildcardRuleTest(): Promise<string | null> {
 
     } catch (error) {
         console.error('Error during wildcard rule demo:', error);
+        return null;
+    }
+}
+
+async function pathPatternRuleTest(): Promise<string | null> {
+    // Create a client instance with your API key
+    const client = new GGKClient(ADMIN_ID);
+
+    try {
+        // Create a new rule demonstrating path_pattern functionality
+        const createResult = await client.createRule({
+            ruleAPI: "api.example.com",
+            userRules: [
+                {
+                    userID: USER_ID,
+                    allowedEndpoints: [
+                        {
+                            methods: 'GET,POST',
+                            path_pattern: '/api/v1/users/*'
+                        },
+                        {
+                            methods: 'GET,PUT,DELETE',
+                            path_pattern: '/api/v1/products/*'
+                        },
+                        {
+                            methods: 'GET',
+                            path_pattern: '/api/v2/admin/*'
+                        }
+                    ]
+                },
+                {
+                    userID: 'premium-user',
+                    allowedEndpoints: [
+                        {
+                            methods: 'GET,POST,PUT,DELETE',
+                            path_pattern: '/api/v1/*'
+                        }
+                    ]
+                }
+            ]
+        });
+        console.log('Created path_pattern rule:', createResult);
+
+        const ruleID = createResult.ruleId;
+
+        // Test various path patterns
+        const testCases = [
+            // User-specific tests
+            { userID: USER_ID, url: 'https://api.example.com/api/v1/users/123', method: 'GET' },
+            { userID: USER_ID, url: 'https://api.example.com/api/v1/users/456', method: 'POST' },
+            { userID: USER_ID, url: 'https://api.example.com/api/v1/products/789', method: 'GET' },
+            { userID: USER_ID, url: 'https://api.example.com/api/v2/admin/settings', method: 'GET' },
+            
+            // Premium user tests (should have broader access)
+            { userID: 'premium-user', url: 'https://api.example.com/api/v1/users/123', method: 'GET' },
+            { userID: 'premium-user', url: 'https://api.example.com/api/v1/products/789', method: 'PUT' },
+            { userID: 'premium-user', url: 'https://api.example.com/api/v1/orders/123', method: 'POST' }
+        ];
+        
+        for (const testCase of testCases) {
+            try {
+                const isAllowedResult = await client.isAllowed(ruleID, testCase);
+                console.log(`Access check for ${testCase.userID} on ${testCase.url} (${testCase.method}):`, isAllowedResult);
+            } catch (error) {
+                console.error(`Error checking access for ${testCase.userID} on ${testCase.url}:`, error);
+            }
+        }
+
+        return ruleID;
+
+    } catch (error) {
+        console.error('Error during path_pattern rule demo:', error);
         return null;
     }
 }
@@ -245,6 +330,16 @@ async function main() {
         
         // Clean up the wildcard rule
         await definedClientDeleteRuleTest(wildcardRuleID);
+    }
+
+    // Test path_pattern functionality
+    console.log('\n=== Testing Path Pattern Rule ===');
+    const pathPatternRuleID = await pathPatternRuleTest();
+    if (pathPatternRuleID) {
+        console.log(`Produced path pattern rule ID = ${pathPatternRuleID}`);
+        
+        // Clean up the path pattern rule
+        await definedClientDeleteRuleTest(pathPatternRuleID);
     }
 
     // Admin user management demo

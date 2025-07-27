@@ -17,12 +17,10 @@ JSON_PAYLOAD='{
             "userID": "test-user-123",
             "allowedEndpoints": [
                 {
-                    "path": "/api/v1/users",
                     "methods": "GET,POST",
                     "path_pattern": "/api/v1/users/*"
                 },
                 {
-                    "path": "/api/v1/products",
                     "methods": "GET",
                     "path_pattern": "/api/v1/products/*"
                 },
@@ -36,7 +34,6 @@ JSON_PAYLOAD='{
             "userID": "test-user-456",
             "allowedEndpoints": [
                 {
-                    "path": "/api/v1/public",
                     "methods": "GET",
                     "path_pattern": "/api/v1/public/*"
                 }
