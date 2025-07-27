@@ -514,6 +514,28 @@ interface IsAllowedRequest {
     method: string;
 }
 
+// Helper function to check if a path matches an endpoint (either path or path_pattern)
+function pathMatchesEndpoint(urlPath: string, endpoint: any): boolean {
+    // If path_pattern is provided, use regex matching
+    if (endpoint.path_pattern) {
+        try {
+            const regex = new RegExp(endpoint.path_pattern);
+            return regex.test(urlPath);
+        } catch (error) {
+            console.error('Invalid regex pattern:', endpoint.path_pattern, error);
+            return false;
+        }
+    }
+    
+    // If path is provided, use the existing startsWith logic
+    if (endpoint.path) {
+        return urlPath.startsWith(endpoint.path);
+    }
+    
+    // If neither path nor path_pattern is provided, no match
+    return false;
+}
+
 export const isAllowedHandler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
     try {
         // Get ruleId from path parameters
@@ -620,8 +642,8 @@ export const isAllowedHandler = async (event: APIGatewayProxyEvent): Promise<API
             
             // Use the wildcard rule for validation
             const matchingEndpoint = wildcardUserRule.allowedEndpoints.find((endpoint: any) => {
-                // Check if the path starts with the rule path (more flexible matching)
-                if (!urlPath.startsWith(endpoint.path)) {
+                // Check if the path matches the endpoint (either path or path_pattern)
+                if (!pathMatchesEndpoint(urlPath, endpoint)) {
                     return false;
                 }
 
@@ -658,8 +680,8 @@ export const isAllowedHandler = async (event: APIGatewayProxyEvent): Promise<API
 
         // Check if any of the allowed endpoints match the request for the specific user
         const matchingEndpoint = matchingUserRule.allowedEndpoints.find((endpoint: any) => {
-            // Check if the path starts with the rule path (more flexible matching)
-            if (!urlPath.startsWith(endpoint.path)) {
+            // Check if the path matches the endpoint (either path or path_pattern)
+            if (!pathMatchesEndpoint(urlPath, endpoint)) {
                 return false;
             }
 
