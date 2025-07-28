@@ -155,6 +155,84 @@ You can use `path_pattern` instead of `path` for regex-based matching:
 
 This allows for more flexible path matching using regular expressions.
 
+### Single DISALLOWED Rules with Path Patterns
+
+You can create rules that only specify what should be denied, allowing everything else by default. This is useful for "allow by default, deny by exception" scenarios:
+
+```typescript
+// Create a rule that only disallows admin endpoints
+const createResult = await client.createRule({
+    ruleAPI: "api.example.com",
+    userRules: [
+        {
+            userID: 'test-user-123',
+            allowedEndpoints: [
+                {
+                    methods: 'GET,POST,PUT,DELETE',
+                    path_pattern: '/api/v1/admin/*',
+                    effect: 'DISALLOWED'
+                }
+            ]
+        }
+    ]
+});
+```
+
+**Behavior:**
+- **All endpoints except `/api/v1/admin/*` are allowed** (no relevant rules exist for them)
+- **Only `/api/v1/admin/*` endpoints are denied** (matches the DISALLOWED rule)
+- **Perfect for blocking sensitive areas while allowing general access**
+
+**Example Access Results:**
+- ✅ `GET /api/v1/users` → **ALLOWED** (no relevant rules)
+- ✅ `POST /api/v1/products` → **ALLOWED** (no relevant rules)
+- ✅ `PUT /api/v2/users` → **ALLOWED** (no relevant rules)
+- ❌ `GET /api/v1/admin/settings` → **DENIED** (matches DISALLOWED pattern)
+- ❌ `POST /api/v1/admin/users` → **DENIED** (matches DISALLOWED pattern)
+
+### Complex Path Pattern Examples
+
+Here are some advanced examples of using path patterns with effects:
+
+```typescript
+// Example 1: Block multiple sensitive areas
+{
+    allowedEndpoints: [
+        {
+            methods: 'GET,POST,PUT,DELETE',
+            path_pattern: '/api/v1/admin/*',
+            effect: 'DISALLOWED'
+        },
+        {
+            methods: 'GET,POST,PUT,DELETE',
+            path_pattern: '/api/v1/internal/*',
+            effect: 'DISALLOWED'
+        },
+        {
+            methods: 'GET,POST,PUT,DELETE',
+            path_pattern: '/api/v1/users/123',
+            effect: 'DISALLOWED'
+        }
+    ]
+}
+
+// Example 2: Allow broad access but block specific patterns
+{
+    allowedEndpoints: [
+        {
+            methods: 'GET,POST,PUT,DELETE',
+            path_pattern: '/api/v1/*',
+            effect: 'ALLOWED'
+        },
+        {
+            methods: 'GET,POST,PUT,DELETE',
+            path_pattern: '/api/v1/admin/*',
+            effect: 'DISALLOWED'
+        }
+    ]
+}
+```
+
 To get the details of a rule you created:
 
 ```typescript
