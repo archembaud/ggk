@@ -19,7 +19,7 @@ JSON_PAYLOAD='{
     "userRules": [
         {
             "userID": "test-user-123",
-            "allowedEndpoints": [
+            "pathRules": [
                 {
                     "methods": "GET,POST,PUT,DELETE",
                     "path_pattern": "/api/v1/*",

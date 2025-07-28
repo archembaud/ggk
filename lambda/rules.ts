@@ -537,14 +537,14 @@ function pathMatchesEndpoint(urlPath: string, endpoint: any): boolean {
 }
 
 // Helper function to check if all endpoints are satisfied for a given path and method
-function allEndpointsSatisfied(urlPath: string, method: string, allowedEndpoints: any[]): boolean {
+function allEndpointsSatisfied(urlPath: string, method: string, pathRules: any[]): boolean {
     // If no endpoints are defined, deny access by default
-    if (!allowedEndpoints || allowedEndpoints.length === 0) {
+    if (!pathRules || pathRules.length === 0) {
         return true;
     }
 
     // First, find all relevant rules (rules that match the path and method)
-    const relevantRules = allowedEndpoints.filter(endpoint => {
+    const relevantRules = pathRules.filter(endpoint => {
         const pathMatches = pathMatchesEndpoint(urlPath, endpoint);
         const methodMatches = endpoint.methods.split(',').map((m: string) => m.trim().toUpperCase()).includes(method.toUpperCase());
         return pathMatches && methodMatches;
@@ -678,7 +678,7 @@ export const isAllowedHandler = async (event: APIGatewayProxyEvent): Promise<API
             }
             
             // Use the wildcard rule for validation
-            if (!allEndpointsSatisfied(urlPath, body.method, wildcardUserRule.allowedEndpoints)) {
+            if (!allEndpointsSatisfied(urlPath, body.method, wildcardUserRule.pathRules)) {
                 return {
                     statusCode: 401,
                     body: JSON.stringify({ 
@@ -704,8 +704,8 @@ export const isAllowedHandler = async (event: APIGatewayProxyEvent): Promise<API
             };
         }
 
-        // Check if all allowed endpoints are satisfied for the specific user
-        if (!allEndpointsSatisfied(urlPath, body.method, matchingUserRule.allowedEndpoints)) {
+        // Check if all path rules are satisfied for the specific user
+        if (!allEndpointsSatisfied(urlPath, body.method, matchingUserRule.pathRules)) {
             return {
                 statusCode: 401,
                 body: JSON.stringify({ 

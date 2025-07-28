@@ -9,13 +9,13 @@ fi
 # The API key to use in the Authorization header
 API_KEY="92d077c1-31ed-49be-a1ce-dae6c2b07e19"
 
-# The JSON payload for the request with path_pattern in allowedEndpoints
+# The JSON payload for the request with path_pattern in pathRules
 JSON_PAYLOAD='{
     "ruleAPI": "api.example.com",
     "userRules": [
         {
             "userID": "test-user-123",
-            "allowedEndpoints": [
+            "pathRules": [
                 {
                     "methods": "GET,POST",
                     "path_pattern": "/api/v1/*",

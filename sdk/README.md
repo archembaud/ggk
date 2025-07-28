@@ -60,7 +60,7 @@ const createResult = await client.createRule({
     userRules: [
         {
             userID: '8fc79383-4e3a-4a1d-9c8c-5817534e61e7',
-            allowedEndpoints: [
+            pathRules: [
                 {
                     path: '/test/path',
                     methods: 'GET,POST',
@@ -83,7 +83,7 @@ const createResult = await client.createRule({
     userRules: [
         {
             userID: "*", // Wildcard - any user can access
-            allowedEndpoints: [
+            pathRules: [
                 {
                     path: '/public/data',
                     methods: 'GET',
@@ -95,7 +95,7 @@ const createResult = await client.createRule({
 });
 ```
 
-When using a wildcard rule, any user ID provided in the `isAllowed` check will be granted access if the path and method match the wildcard rule's allowed endpoints.
+When using a wildcard rule, any user ID provided in the `isAllowed` check will be granted access if the path and method match the wildcard rule's path rules.
 
 ### Effect-Based Rules
 
@@ -108,7 +108,7 @@ const createResult = await client.createRule({
     userRules: [
         {
             userID: 'test-user-123',
-            allowedEndpoints: [
+            pathRules: [
                 {
                     methods: 'GET,POST,PUT,DELETE',
                     path_pattern: '/api/v1/*',
@@ -166,7 +166,7 @@ const createResult = await client.createRule({
     userRules: [
         {
             userID: 'test-user-123',
-            allowedEndpoints: [
+            pathRules: [
                 {
                     methods: 'GET,POST,PUT,DELETE',
                     path_pattern: '/api/v1/admin/*',
@@ -197,7 +197,7 @@ Here are some advanced examples of using path patterns with effects:
 ```typescript
 // Example 1: Block multiple sensitive areas
 {
-    allowedEndpoints: [
+    pathRules: [
         {
             methods: 'GET,POST,PUT,DELETE',
             path_pattern: '/api/v1/admin/*',
@@ -218,7 +218,7 @@ Here are some advanced examples of using path patterns with effects:
 
 // Example 2: Allow broad access but block specific patterns
 {
-    allowedEndpoints: [
+    pathRules: [
         {
             methods: 'GET,POST,PUT,DELETE',
             path_pattern: '/api/v1/*',
@@ -384,7 +384,7 @@ Creates a new GGK client instance
 ```typescript
 interface UserRule {
     userID: string;
-    allowedEndpoints: {
+    pathRules: {
         path?: string;
         methods: string;
         path_pattern?: string;

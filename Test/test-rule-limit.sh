@@ -22,7 +22,7 @@ for i in {1..12}; do
         \"userRules\": [
             {
                 \"userID\": \"test-user-$i\",
-                \"allowedEndpoints\": [
+                \"pathRules\": [
                     {
                         \"path\": \"/test/path$i\",
                         \"methods\": \"GET,POST\",

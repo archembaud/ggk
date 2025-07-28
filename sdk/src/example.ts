@@ -29,7 +29,7 @@ async function definedClientRuleCreationTest(): Promise<string | null> {
             userRules: [
                 {
                     userID: USER_ID,
-                    allowedEndpoints: [
+                    pathRules: [
                         {
                             path: '/test/path',
                             methods: 'GET,POST',
@@ -144,7 +144,7 @@ async function wildcardRuleTest(): Promise<string | null> {
             userRules: [
                 {
                     userID: "*", // Wildcard - any user can access
-                    allowedEndpoints: [
+                    pathRules: [
                         {
                             methods: 'GET',
                             path_pattern: '/public/*',
@@ -199,7 +199,7 @@ async function effectRuleTest(): Promise<string | null> {
             userRules: [
                 {
                     userID: USER_ID,
-                    allowedEndpoints: [
+                    pathRules: [
                         {
                             methods: 'GET,POST,PUT,DELETE',
                             path_pattern: '/api/v1/*',
@@ -219,7 +219,7 @@ async function effectRuleTest(): Promise<string | null> {
                 },
                 {
                     userID: 'admin-user',
-                    allowedEndpoints: [
+                    pathRules: [
                         {
                             methods: 'GET,POST,PUT,DELETE',
                             path_pattern: '/api/v1/*',
@@ -283,7 +283,7 @@ async function singleDisallowedRuleTest(): Promise<string | null> {
             userRules: [
                 {
                     userID: USER_ID,
-                    allowedEndpoints: [
+                    pathRules: [
                         {
                             methods: 'GET,POST,PUT,DELETE',
                             path_pattern: '/api/v1/admin/*',

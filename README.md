@@ -23,7 +23,7 @@ curl -X POST https://your-ggk-url/rules \
     "userRules": [
       {
         "userID": "user-guid-123",
-        "allowedEndpoints": [
+        "pathRules": [
           { "path": "/data", "methods": "GET,POST" }
         ]
       }
@@ -40,7 +40,7 @@ await client.createRule({
   userRules: [
     {
       userID: 'user-guid-123',
-      allowedEndpoints: [
+      pathRules: [
         { path: '/data', methods: 'GET,POST' }
       ]
     }

@@ -15,7 +15,7 @@ JSON_PAYLOAD='{
     "userRules": [
         {
             "userID": "test-user-123",
-            "allowedEndpoints": [
+            "pathRules": [
                 {
                     "path": "/test/path",
                     "methods": "GET,POST",
