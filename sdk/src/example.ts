@@ -271,6 +271,71 @@ async function effectRuleTest(): Promise<string | null> {
     }
 }
 
+async function singleDisallowedRuleTest(): Promise<string | null> {
+    // Create a client instance with your API key
+    const client = new GGKClient(ADMIN_ID);
+
+    try {
+        // Create a new rule with only a single DISALLOWED endpoint
+        // This demonstrates that all other endpoints should be permitted by default
+        const createResult = await client.createRule({
+            ruleAPI: "api.example.com",
+            userRules: [
+                {
+                    userID: USER_ID,
+                    allowedEndpoints: [
+                        {
+                            methods: 'GET,POST,PUT,DELETE',
+                            path_pattern: '/api/v1/admin/*',
+                            effect: 'DISALLOWED'
+                        }
+                    ]
+                }
+            ]
+        });
+        console.log('Created single DISALLOWED rule:', createResult);
+
+        const ruleID = createResult.ruleId;
+
+        // Test various endpoints - all should be allowed except the disallowed one
+        const testCases = [
+            // Should be ALLOWED (no relevant rules, so default behavior)
+            { userID: USER_ID, url: 'https://api.example.com/api/v1/users', method: 'GET' },
+            { userID: USER_ID, url: 'https://api.example.com/api/v1/products', method: 'POST' },
+            { userID: USER_ID, url: 'https://api.example.com/api/v1/orders', method: 'PUT' },
+            { userID: USER_ID, url: 'https://api.example.com/api/v2/users', method: 'DELETE' },
+            { userID: USER_ID, url: 'https://api.example.com/public/data', method: 'GET' },
+            { userID: USER_ID, url: 'https://api.example.com/api/v1/users/123', method: 'GET' },
+            { userID: USER_ID, url: 'https://api.example.com/api/v1/products/789', method: 'POST' },
+            
+            // Should be DISALLOWED (matches the DISALLOWED pattern)
+            { userID: USER_ID, url: 'https://api.example.com/api/v1/admin/settings', method: 'GET' },
+            { userID: USER_ID, url: 'https://api.example.com/api/v1/admin/users', method: 'POST' },
+            { userID: USER_ID, url: 'https://api.example.com/api/v1/admin/dashboard', method: 'PUT' },
+            { userID: USER_ID, url: 'https://api.example.com/api/v1/admin/logs', method: 'DELETE' }
+        ];
+        
+        console.log('\nTesting single DISALLOWED rule - all endpoints should be allowed except admin ones:');
+        for (const testCase of testCases) {
+            console.log(`Checking test case: ${JSON.stringify(testCase)}`)
+            try {
+                const isAllowedResult = await client.isAllowed(ruleID, testCase);
+                const isAllowed = isAllowedResult.message === 'Access allowed';
+                const status = isAllowed ? '✅ ALLOWED' : '❌ DENIED';
+                console.log(`${status} - ${testCase.method} ${testCase.url}`);
+            } catch (error) {
+                console.error(`❌ ERROR - ${testCase.method} ${testCase.url}:`, error);
+            }
+        }
+
+        return ruleID;
+
+    } catch (error) {
+        console.error('Error during single DISALLOWED rule demo:', error);
+        return null;
+    }
+}
+
 async function adminUserManagementDemo() {
     const adminClient = new GGKClient(ADMIN_ID);
     try {
@@ -299,6 +364,7 @@ async function adminUserManagementDemo() {
 }
 
 async function main() {
+    /*
     // Create a simple rule
     const ruleID = await definedClientRuleCreationTest()
     if (ruleID) {
@@ -332,6 +398,16 @@ async function main() {
         
         // Clean up the effect rule
         await definedClientDeleteRuleTest(effectRuleID);
+    }
+    */
+    // Test single DISALLOWED rule functionality
+    console.log('\n=== Testing Single DISALLOWED Rule ===');
+    const singleDisallowedRuleID = await singleDisallowedRuleTest();
+    if (singleDisallowedRuleID) {
+        console.log(`Produced single DISALLOWED rule ID = ${singleDisallowedRuleID}`);
+        
+        // Clean up the single DISALLOWED rule
+        await definedClientDeleteRuleTest(singleDisallowedRuleID);
     }
 
     // Admin user management demo

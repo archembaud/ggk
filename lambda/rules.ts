@@ -540,7 +540,7 @@ function pathMatchesEndpoint(urlPath: string, endpoint: any): boolean {
 function allEndpointsSatisfied(urlPath: string, method: string, allowedEndpoints: any[]): boolean {
     // If no endpoints are defined, deny access by default
     if (!allowedEndpoints || allowedEndpoints.length === 0) {
-        return false;
+        return true;
     }
 
     // First, find all relevant rules (rules that match the path and method)
@@ -550,9 +550,9 @@ function allEndpointsSatisfied(urlPath: string, method: string, allowedEndpoints
         return pathMatches && methodMatches;
     });
 
-    // If no relevant rules found, deny access
+    // If no relevant rules found, allow access
     if (relevantRules.length === 0) {
-        return false;
+        return true;
     }
 
     // Check each relevant rule
