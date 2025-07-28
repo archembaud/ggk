@@ -60,10 +60,11 @@ const createResult = await client.createRule({
     userRules: [
         {
             userID: '8fc79383-4e3a-4a1d-9c8c-5817534e61e7',
-            allowedEndpoints: [
+            pathRules: [
                 {
                     path: '/test/path',
-                    methods: 'GET,POST'
+                    methods: 'GET,POST',
+                    effect: 'ALLOWED'
                 }
             ]
         }
@@ -82,10 +83,11 @@ const createResult = await client.createRule({
     userRules: [
         {
             userID: "*", // Wildcard - any user can access
-            allowedEndpoints: [
+            pathRules: [
                 {
                     path: '/public/data',
-                    methods: 'GET'
+                    methods: 'GET',
+                    effect: 'ALLOWED'
                 }
             ]
         }
@@ -93,7 +95,143 @@ const createResult = await client.createRule({
 });
 ```
 
-When using a wildcard rule, any user ID provided in the `isAllowed` check will be granted access if the path and method match the wildcard rule's allowed endpoints.
+When using a wildcard rule, any user ID provided in the `isAllowed` check will be granted access if the path and method match the wildcard rule's path rules.
+
+### Effect-Based Rules
+
+GGK supports effect-based rule evaluation where each endpoint can have an `effect` parameter set to either `ALLOWED` or `DISALLOWED`. This allows for more complex access control scenarios:
+
+```typescript
+// Create a rule with effect-based access control
+const createResult = await client.createRule({
+    ruleAPI: "api.example.com",
+    userRules: [
+        {
+            userID: 'test-user-123',
+            pathRules: [
+                {
+                    methods: 'GET,POST,PUT,DELETE',
+                    path_pattern: '/api/v1/*',
+                    effect: 'ALLOWED'
+                },
+                {
+                    methods: 'GET,POST,PUT,DELETE',
+                    path_pattern: '/api/v1/admin/*',
+                    effect: 'DISALLOWED'
+                },
+                {
+                    methods: 'GET,POST,PUT,DELETE',
+                    path_pattern: '/api/v1/users/123',
+                    effect: 'DISALLOWED'
+                }
+            ]
+        }
+    ]
+});
+```
+
+**Effect Evaluation Rules:**
+- **ALLOWED**: If the path/method matches, this rule is satisfied
+- **DISALLOWED**: If the path/method matches, this rule is NOT satisfied (access denied)
+- **All rules must be satisfied** for access to be granted
+- **Default behavior**: If no `effect` is specified, defaults to `ALLOWED`
+
+**Example Scenarios:**
+- Allow access to all `/api/v1/*` endpoints except admin and specific user endpoints
+- Block specific sensitive endpoints while allowing broader access
+- Create complex permission hierarchies
+
+### Path Patterns
+
+You can use `path_pattern` instead of `path` for regex-based matching:
+
+```typescript
+{
+    methods: 'GET,POST',
+    path_pattern: '/api/v1/users/*',
+    effect: 'ALLOWED'
+}
+```
+
+This allows for more flexible path matching using regular expressions.
+
+### Single DISALLOWED Rules with Path Patterns
+
+You can create rules that only specify what should be denied, allowing everything else by default. This is useful for "allow by default, deny by exception" scenarios:
+
+```typescript
+// Create a rule that only disallows admin endpoints
+const createResult = await client.createRule({
+    ruleAPI: "api.example.com",
+    userRules: [
+        {
+            userID: 'test-user-123',
+            pathRules: [
+                {
+                    methods: 'GET,POST,PUT,DELETE',
+                    path_pattern: '/api/v1/admin/*',
+                    effect: 'DISALLOWED'
+                }
+            ]
+        }
+    ]
+});
+```
+
+**Behavior:**
+- **All endpoints except `/api/v1/admin/*` are allowed** (no relevant rules exist for them)
+- **Only `/api/v1/admin/*` endpoints are denied** (matches the DISALLOWED rule)
+- **Perfect for blocking sensitive areas while allowing general access**
+
+**Example Access Results:**
+- ✅ `GET /api/v1/users` → **ALLOWED** (no relevant rules)
+- ✅ `POST /api/v1/products` → **ALLOWED** (no relevant rules)
+- ✅ `PUT /api/v2/users` → **ALLOWED** (no relevant rules)
+- ❌ `GET /api/v1/admin/settings` → **DENIED** (matches DISALLOWED pattern)
+- ❌ `POST /api/v1/admin/users` → **DENIED** (matches DISALLOWED pattern)
+
+### Complex Path Pattern Examples
+
+Here are some advanced examples of using path patterns with effects:
+
+```typescript
+// Example 1: Block multiple sensitive areas
+{
+    pathRules: [
+        {
+            methods: 'GET,POST,PUT,DELETE',
+            path_pattern: '/api/v1/admin/*',
+            effect: 'DISALLOWED'
+        },
+        {
+            methods: 'GET,POST,PUT,DELETE',
+            path_pattern: '/api/v1/internal/*',
+            effect: 'DISALLOWED'
+        },
+        {
+            methods: 'GET,POST,PUT,DELETE',
+            path_pattern: '/api/v1/users/123',
+            effect: 'DISALLOWED'
+        }
+    ]
+}
+
+// Example 2: Allow broad access but block specific patterns
+{
+    pathRules: [
+        {
+            methods: 'GET,POST,PUT,DELETE',
+            path_pattern: '/api/v1/*',
+            effect: 'ALLOWED'
+        },
+        {
+            methods: 'GET,POST,PUT,DELETE',
+            path_pattern: '/api/v1/admin/*',
+            effect: 'DISALLOWED'
+        }
+    ]
+}
+```
 
 To get the details of a rule you created:
 
@@ -246,9 +384,11 @@ Creates a new GGK client instance
 ```typescript
 interface UserRule {
     userID: string;
-    allowedEndpoints: {
-        path: string;
+    pathRules: {
+        path?: string;
         methods: string;
+        path_pattern?: string;
+        effect?: 'ALLOWED' | 'DISALLOWED';
     }[];
 }
 

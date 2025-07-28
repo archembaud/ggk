@@ -2,9 +2,11 @@ import axios, { AxiosInstance } from 'axios';
 
 export interface UserRule {
     userID: string;
-    allowedEndpoints: {
-        path: string;
+    pathRules: {
+        path?: string;
         methods: string;
+        path_pattern?: string;
+        effect?: 'ALLOWED' | 'DISALLOWED';
     }[];
 }
 

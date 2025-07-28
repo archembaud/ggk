@@ -2,6 +2,7 @@ import { GGKClient } from './index';
 import dotenv from 'dotenv';
 import axios from 'axios';
 
+
 // Load environment variables
 dotenv.config();
 
@@ -22,16 +23,27 @@ async function definedClientRuleCreationTest(): Promise<string | null> {
     const client = new GGKClient(ADMIN_ID);
 
     try {
-        // Create a new rule
+        // Create a new rule with both path and path_pattern examples
         const createResult = await client.createRule({
             ruleAPI: "some.example.com",
             userRules: [
                 {
                     userID: USER_ID,
-                    allowedEndpoints: [
+                    pathRules: [
                         {
                             path: '/test/path',
-                            methods: 'GET,POST'
+                            methods: 'GET,POST',
+                            effect: 'ALLOWED'
+                        },
+                        {
+                            methods: 'GET,PUT,DELETE',
+                            path_pattern: '/api/v1/users/*',
+                            effect: 'ALLOWED'
+                        },
+                        {
+                            methods: 'GET',
+                            path_pattern: '/api/v1/products/*',
+                            effect: 'ALLOWED'
                         }
                     ]
                 }
@@ -47,32 +59,6 @@ async function definedClientRuleCreationTest(): Promise<string | null> {
         const getResult = await client.getRule(createResult.ruleId);
         console.log('Retrieved rule:', getResult);
 
-        /*
-        // Update the rule
-        const updateResult = await client.updateRule(createResult.ruleId, {
-            ruleAPI: 'test-api-updated',
-            ruleEnabled: false
-        });
-        console.log('Updated rule:', updateResult);
-        */
-
-        /*
-        // Check if access is allowed
-        const isAllowedResult = await client.isAllowed(createResult.ruleId, {
-            userID: 'test-user-123',
-            url: 'https://some.example.com/test/path',
-            method: 'GET'
-        });
-        console.log('Access check result:', isAllowedResult);
-
-        // Get all rules
-        const allRules = await client.getRules();
-        console.log('All rules:', allRules);
-
-        // Delete the rule
-        const deleteResult = await client.deleteRule(createResult.ruleId);
-        console.log('Deleted rule:', deleteResult);
-        */
 
         return ruleID
 
@@ -88,6 +74,7 @@ async function undefinedClientRuleTest(ruleID: string) {
         provided they know the GUID for the rule.
     */
     const client = new GGKClient(null);
+    console.log("Checking if client can access resource")
     try {
         const isAllowedResult = await client.isAllowed(ruleID, {
             userID: USER_ID,
@@ -151,16 +138,22 @@ async function wildcardRuleTest(): Promise<string | null> {
     const client = new GGKClient(ADMIN_ID);
 
     try {
-        // Create a new rule with wildcard user access
+        // Create a new rule with wildcard user access using path_pattern
         const createResult = await client.createRule({
             ruleAPI: "api.example.com",
             userRules: [
                 {
                     userID: "*", // Wildcard - any user can access
-                    allowedEndpoints: [
+                    pathRules: [
                         {
-                            path: '/public/data',
-                            methods: 'GET'
+                            methods: 'GET',
+                            path_pattern: '/public/*',
+                            effect: 'ALLOWED'
+                        },
+                        {
+                            path: '/api/health',
+                            methods: 'GET',
+                            effect: 'ALLOWED'
                         }
                     ]
                 }
@@ -170,19 +163,20 @@ async function wildcardRuleTest(): Promise<string | null> {
 
         const ruleID = createResult.ruleId;
 
-        // Test with different users - all should be allowed
-        const testUsers = ['user1', 'user2', 'anonymous-user', 'any-user-id'];
+        // Test with different users and paths - all should be allowed
+        const testCases = [
+            { userID: 'user1', url: 'https://api.example.com/public/data', method: 'GET' },
+            { userID: 'user2', url: 'https://api.example.com/public/users', method: 'GET' },
+            { userID: 'anonymous-user', url: 'https://api.example.com/api/health', method: 'GET' },
+            { userID: 'any-user-id', url: 'https://api.example.com/public/anything', method: 'GET' }
+        ];
         
-        for (const testUser of testUsers) {
+        for (const testCase of testCases) {
             try {
-                const isAllowedResult = await client.isAllowed(ruleID, {
-                    userID: testUser,
-                    url: 'https://api.example.com/public/data',
-                    method: 'GET'
-                });
-                console.log(`Access check for ${testUser}:`, isAllowedResult);
+                const isAllowedResult = await client.isAllowed(ruleID, testCase);
+                console.log(`Access check for ${testCase.userID} on ${testCase.url}:`, isAllowedResult);
             } catch (error) {
-                console.error(`Error checking access for ${testUser}:`, error);
+                console.error(`Error checking access for ${testCase.userID}:`, error);
             }
         }
 
@@ -190,6 +184,154 @@ async function wildcardRuleTest(): Promise<string | null> {
 
     } catch (error) {
         console.error('Error during wildcard rule demo:', error);
+        return null;
+    }
+}
+
+async function effectRuleTest(): Promise<string | null> {
+    // Create a client instance with your API key
+    const client = new GGKClient(ADMIN_ID);
+
+    try {
+        // Create a new rule demonstrating effect parameter functionality
+        const createResult = await client.createRule({
+            ruleAPI: "api.example.com",
+            userRules: [
+                {
+                    userID: USER_ID,
+                    pathRules: [
+                        {
+                            methods: 'GET,POST,PUT,DELETE',
+                            path_pattern: '/api/v1/*',
+                            effect: 'ALLOWED'
+                        },
+                        {
+                            methods: 'GET,POST,PUT,DELETE',
+                            path_pattern: '/api/v1/admin/*',
+                            effect: 'DISALLOWED'
+                        },
+                        {
+                            methods: 'GET,POST,PUT,DELETE',
+                            path_pattern: '/api/v1/users/123',
+                            effect: 'DISALLOWED'
+                        }
+                    ]
+                },
+                {
+                    userID: 'admin-user',
+                    pathRules: [
+                        {
+                            methods: 'GET,POST,PUT,DELETE',
+                            path_pattern: '/api/v1/*',
+                            effect: 'ALLOWED'
+                        }
+                    ]
+                }
+            ]
+        });
+        console.log('Created effect rule:', createResult);
+
+        const ruleID = createResult.ruleId;
+
+        // Test various effect scenarios
+        const testCases = [
+            // test-user-123 - Should be ALLOWED (matches ALLOWED pattern, doesn't match DISALLOWED patterns)
+            { userID: USER_ID, url: 'https://api.example.com/api/v1/users/456', method: 'GET' },
+            { userID: USER_ID, url: 'https://api.example.com/api/v1/products/789', method: 'POST' },
+            { userID: USER_ID, url: 'https://api.example.com/api/v1/orders/123', method: 'PUT' },
+            
+            // test-user-123 - Should be DISALLOWED (matches DISALLOWED admin pattern)
+            { userID: USER_ID, url: 'https://api.example.com/api/v1/admin/settings', method: 'GET' },
+            { userID: USER_ID, url: 'https://api.example.com/api/v1/admin/users', method: 'POST' },
+            
+            // test-user-123 - Should be DISALLOWED (matches DISALLOWED specific user pattern)
+            { userID: USER_ID, url: 'https://api.example.com/api/v1/users/123', method: 'GET' },
+            { userID: USER_ID, url: 'https://api.example.com/api/v1/users/123', method: 'DELETE' },
+            
+            // admin-user - Should be ALLOWED (has full access to /api/v1/*)
+            { userID: 'admin-user', url: 'https://api.example.com/api/v1/users/123', method: 'GET' },
+            { userID: 'admin-user', url: 'https://api.example.com/api/v1/admin/settings', method: 'GET' },
+            { userID: 'admin-user', url: 'https://api.example.com/api/v1/products/789', method: 'POST' }
+        ];
+        
+        for (const testCase of testCases) {
+            try {
+                const isAllowedResult = await client.isAllowed(ruleID, testCase);
+                console.log(`Access check for ${testCase.userID} on ${testCase.url} (${testCase.method}):`, isAllowedResult);
+            } catch (error) {
+                console.error(`Error checking access for ${testCase.userID} on ${testCase.url}:`, error);
+            }
+        }
+
+        return ruleID;
+
+    } catch (error) {
+        console.error('Error during effect rule demo:', error);
+        return null;
+    }
+}
+
+async function singleDisallowedRuleTest(): Promise<string | null> {
+    // Create a client instance with your API key
+    const client = new GGKClient(ADMIN_ID);
+
+    try {
+        // Create a new rule with only a single DISALLOWED endpoint
+        // This demonstrates that all other endpoints should be permitted by default
+        const createResult = await client.createRule({
+            ruleAPI: "api.example.com",
+            userRules: [
+                {
+                    userID: USER_ID,
+                    pathRules: [
+                        {
+                            methods: 'GET,POST,PUT,DELETE',
+                            path_pattern: '/api/v1/admin/*',
+                            effect: 'DISALLOWED'
+                        }
+                    ]
+                }
+            ]
+        });
+        console.log('Created single DISALLOWED rule:', createResult);
+
+        const ruleID = createResult.ruleId;
+
+        // Test various endpoints - all should be allowed except the disallowed one
+        const testCases = [
+            // Should be ALLOWED (no relevant rules, so default behavior)
+            { userID: USER_ID, url: 'https://api.example.com/api/v1/users', method: 'GET' },
+            { userID: USER_ID, url: 'https://api.example.com/api/v1/products', method: 'POST' },
+            { userID: USER_ID, url: 'https://api.example.com/api/v1/orders', method: 'PUT' },
+            { userID: USER_ID, url: 'https://api.example.com/api/v2/users', method: 'DELETE' },
+            { userID: USER_ID, url: 'https://api.example.com/public/data', method: 'GET' },
+            { userID: USER_ID, url: 'https://api.example.com/api/v1/users/123', method: 'GET' },
+            { userID: USER_ID, url: 'https://api.example.com/api/v1/products/789', method: 'POST' },
+            
+            // Should be DISALLOWED (matches the DISALLOWED pattern)
+            { userID: USER_ID, url: 'https://api.example.com/api/v1/admin/settings', method: 'GET' },
+            { userID: USER_ID, url: 'https://api.example.com/api/v1/admin/users', method: 'POST' },
+            { userID: USER_ID, url: 'https://api.example.com/api/v1/admin/dashboard', method: 'PUT' },
+            { userID: USER_ID, url: 'https://api.example.com/api/v1/admin/logs', method: 'DELETE' }
+        ];
+        
+        console.log('\nTesting single DISALLOWED rule - all endpoints should be allowed except admin ones:');
+        for (const testCase of testCases) {
+            console.log(`Checking test case: ${JSON.stringify(testCase)}`)
+            try {
+                const isAllowedResult = await client.isAllowed(ruleID, testCase);
+                const isAllowed = isAllowedResult.message === 'Access allowed';
+                const status = isAllowed ? '✅ ALLOWED' : '❌ DENIED';
+                console.log(`${status} - ${testCase.method} ${testCase.url}`);
+            } catch (error) {
+                console.error(`❌ ERROR - ${testCase.method} ${testCase.url}:`, error);
+            }
+        }
+
+        return ruleID;
+
+    } catch (error) {
+        console.error('Error during single DISALLOWED rule demo:', error);
         return null;
     }
 }
@@ -222,6 +364,7 @@ async function adminUserManagementDemo() {
 }
 
 async function main() {
+
     // Create a simple rule
     const ruleID = await definedClientRuleCreationTest()
     if (ruleID) {
@@ -245,6 +388,26 @@ async function main() {
         
         // Clean up the wildcard rule
         await definedClientDeleteRuleTest(wildcardRuleID);
+    }
+
+    // Test effect parameter functionality
+    console.log('\n=== Testing Effect Parameter Rule ===');
+    const effectRuleID = await effectRuleTest();
+    if (effectRuleID) {
+        console.log(`Produced effect rule ID = ${effectRuleID}`);
+        
+        // Clean up the effect rule
+        await definedClientDeleteRuleTest(effectRuleID);
+    }
+
+    // Test single DISALLOWED rule functionality
+    console.log('\n=== Testing Single DISALLOWED Rule ===');
+    const singleDisallowedRuleID = await singleDisallowedRuleTest();
+    if (singleDisallowedRuleID) {
+        console.log(`Produced single DISALLOWED rule ID = ${singleDisallowedRuleID}`);
+        
+        // Clean up the single DISALLOWED rule
+        await definedClientDeleteRuleTest(singleDisallowedRuleID);
     }
 
     // Admin user management demo

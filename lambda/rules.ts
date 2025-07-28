@@ -514,6 +514,65 @@ interface IsAllowedRequest {
     method: string;
 }
 
+// Helper function to check if a path matches an endpoint (either path or path_pattern)
+function pathMatchesEndpoint(urlPath: string, endpoint: any): boolean {
+    // If path_pattern is provided, use regex matching
+    if (endpoint.path_pattern) {
+        try {
+            const regex = new RegExp(endpoint.path_pattern);
+            return regex.test(urlPath);
+        } catch (error) {
+            console.error('Invalid regex pattern:', endpoint.path_pattern, error);
+            return false;
+        }
+    }
+    
+    // If path is provided, use the existing startsWith logic
+    if (endpoint.path) {
+        return urlPath.startsWith(endpoint.path);
+    }
+    
+    // If neither path nor path_pattern is provided, no match
+    return false;
+}
+
+// Helper function to check if all endpoints are satisfied for a given path and method
+function allEndpointsSatisfied(urlPath: string, method: string, pathRules: any[]): boolean {
+    // If no endpoints are defined, deny access by default
+    if (!pathRules || pathRules.length === 0) {
+        return true;
+    }
+
+    // First, find all relevant rules (rules that match the path and method)
+    const relevantRules = pathRules.filter(endpoint => {
+        const pathMatches = pathMatchesEndpoint(urlPath, endpoint);
+        const methodMatches = endpoint.methods.split(',').map((m: string) => m.trim().toUpperCase()).includes(method.toUpperCase());
+        return pathMatches && methodMatches;
+    });
+
+    // If no relevant rules found, allow access
+    if (relevantRules.length === 0) {
+        return true;
+    }
+
+    // Check each relevant rule
+    for (const endpoint of relevantRules) {
+        // Get the effect (default to ALLOWED for backward compatibility)
+        const effect = endpoint.effect || 'ALLOWED';
+        
+        if (effect === 'ALLOWED') {
+            // For ALLOWED rules, if we reach here, the rule is satisfied (since it's relevant)
+            continue; // This rule is satisfied, check the next one
+        } else if (effect === 'DISALLOWED') {
+            // For DISALLOWED rules, if we reach here, access is explicitly denied
+            return false; // Access is explicitly denied
+        }
+    }
+    
+    // All relevant rules are satisfied
+    return true;
+}
+
 export const isAllowedHandler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
     try {
         // Get ruleId from path parameters
@@ -619,18 +678,7 @@ export const isAllowedHandler = async (event: APIGatewayProxyEvent): Promise<API
             }
             
             // Use the wildcard rule for validation
-            const matchingEndpoint = wildcardUserRule.allowedEndpoints.find((endpoint: any) => {
-                // Check if the path starts with the rule path (more flexible matching)
-                if (!urlPath.startsWith(endpoint.path)) {
-                    return false;
-                }
-
-                // Check if the method is allowed
-                const allowedMethods = endpoint.methods.split(',').map((m: string) => m.trim().toUpperCase());
-                return allowedMethods.includes(body.method.toUpperCase());
-            });
-
-            if (!matchingEndpoint) {
+            if (!allEndpointsSatisfied(urlPath, body.method, wildcardUserRule.pathRules)) {
                 return {
                     statusCode: 401,
                     body: JSON.stringify({ 
@@ -656,19 +704,8 @@ export const isAllowedHandler = async (event: APIGatewayProxyEvent): Promise<API
             };
         }
 
-        // Check if any of the allowed endpoints match the request for the specific user
-        const matchingEndpoint = matchingUserRule.allowedEndpoints.find((endpoint: any) => {
-            // Check if the path starts with the rule path (more flexible matching)
-            if (!urlPath.startsWith(endpoint.path)) {
-                return false;
-            }
-
-            // Check if the method is allowed
-            const allowedMethods = endpoint.methods.split(',').map((m: string) => m.trim().toUpperCase());
-            return allowedMethods.includes(body.method.toUpperCase());
-        });
-
-        if (!matchingEndpoint) {
+        // Check if all path rules are satisfied for the specific user
+        if (!allEndpointsSatisfied(urlPath, body.method, matchingUserRule.pathRules)) {
             return {
                 statusCode: 401,
                 body: JSON.stringify({ 

@@ -6,41 +6,39 @@ if [ -z "$GGK_URL" ]; then
     exit 1
 fi
 
+# Check if ruleId is provided as argument
+if [ -z "$1" ]; then
+    echo "Error: Please provide a ruleId as an argument"
+    echo "Usage: $0 <ruleId>"
+    exit 1
+fi
+
+RULE_ID="$1"
+
 # The API key to use in the Authorization header
 API_KEY="92d077c1-31ed-49be-a1ce-dae6c2b07e19"
 
-# The JSON payload for the request
+# The JSON payload for updating path_pattern in pathRules
 JSON_PAYLOAD='{
-    "ruleAPI": "api.example.com",
     "userRules": [
         {
             "userID": "test-user-123",
             "pathRules": [
                 {
-                    "path": "/test/path",
                     "methods": "GET,POST",
+                    "path_pattern": "/api/v2/users/*",
                     "effect": "ALLOWED"
-                },
-                {
-                    "path": "/test/path",
-                    "methods": "DELETE",
-                    "effect": "DISALLOWED"
-                },
-                {
-                    "path": "/test/anotherpath",
-                    "methods": "DELETE",
-                    "effect": "DISALLOWED"
                 }
             ]
         }
     ]
 }'
 
-# Make the POST request
-curl -X POST \
+# Make the PUT request
+curl -X PUT \
     -H "Authorization: $API_KEY" \
     -H "Content-Type: application/json" \
     -d "$JSON_PAYLOAD" \
-    "$GGK_URL/rules"
+    "$GGK_URL/rules/$RULE_ID"
 
 echo # Add a newline after the response 

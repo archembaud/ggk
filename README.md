@@ -23,7 +23,7 @@ curl -X POST https://your-ggk-url/rules \
     "userRules": [
       {
         "userID": "user-guid-123",
-        "allowedEndpoints": [
+        "pathRules": [
           { "path": "/data", "methods": "GET,POST" }
         ]
       }
@@ -40,12 +40,126 @@ await client.createRule({
   userRules: [
     {
       userID: 'user-guid-123',
-      allowedEndpoints: [
+      pathRules: [
         { path: '/data', methods: 'GET,POST' }
       ]
     }
   ]
 });
+```
+
+## Test Scripts
+
+The `/Test` folder contains a comprehensive set of bash scripts for testing and demonstrating GGK functionality. These scripts require the following environment variables to be set:
+
+- `GGK_URL`: The base URL of your GGK service. The default testing URL is https://ggk-stack-test.ggk.archembaud.com
+- `GGK_RULE_ID`: The ID of a rule (for scripts that test existing rules). Use the create-rule.sh script to create a rule and get it's ID.
+- `GGK_ADMIN`: Admin API key (for admin operations). Provided on stack deployment.
+
+### Basic Rule Management Scripts
+
+- **`create-rule.sh`** - Creates a basic rule with test endpoints for GET, POST, and DELETE methods
+
+```bash
+sh create-rule.sh
+```
+- **`get-rules.sh`** - Lists all rules for the API key
+
+```bash
+sh get-rules.sh
+```
+
+- **`get-rule.sh`** - Retrieves a specific rule by ID.
+```bash
+export GGK_RULE_ID=<your rule ID>
+sh get-rule.sh
+```
+- **`modify-rule.sh`** - Updates an existing rule
+```bash
+export GGK_RULE_ID=<your rule ID>
+sh modify-rule.sh
+```
+- **`create-rule-with-path-pattern.sh`** - Creates a rule using path patterns (e.g., `/api/v1/users/*`)
+- **`create-rule-multiple-path-patterns.sh`** - Creates a rule with multiple path patterns for different access levels
+```bash
+sh create-rule-with-path-pattern.sh
+sh create-rule-multiple-path-patterns.sh
+```
+
+- **`update-rule-path-pattern.sh`** - Updates the path pattern of an existing rule
+- **`delete-rule.sh`** - Deletes a rule by ID
+```bash
+export GGK_RULE_ID=<your rule ID>
+sh delete-rule.sh
+```
+
+### Rule Testing Scripts
+
+- **`check-rule.sh`** - Tests rule enforcement with multiple scenarios (allowed and denied requests)
+```bash
+# Create a rule and collect the rule ID
+sh create-rule.sh
+# Set the rule ID; we'll use it in the check-rule.sh script.
+export GGK_RULE_ID=<your rule ID>
+# Check the access
+sh check-rule.sh
+```
+- **`test-path-pattern-matching.sh`** - Comprehensive testing of path pattern matching with various URL patterns.
+```bash
+# Create rules with regex
+sh create-rule-with-path-pattern.sh
+# Grab the rule ID created
+export GGK_RULE_ID=<your rule ID>
+# Pass in the GGK_RULE_ID as an argument
+./test-path-pattern-matching.sh $GGK_RULE_ID
+```
+
+- **`test-effect-matching.sh`** - Tests the effect parameter (ALLOWED/DISALLOWED) functionality
+- **`test-flexible-path-matching.sh`** - Tests flexible path matching with wildcards and patterns
+- **`test-relevant-rules-only.sh`** - Tests rule filtering to show only relevant rules for a user
+- **`test-effect-relevant-rules.sh`** - Tests effect-based rule filtering
+- **`test-rule-limit.sh`** - Tests rule limit enforcement
+
+### User Management Scripts
+
+- **`get-user.sh`** - Retrieves information about a specific user
+- **`admin-get-users.sh`** - Lists all users (admin operation)
+- **`admin-get-user.sh`** - Retrieves information about a specific user (admin operation)
+- **`admin-modify-user.sh`** - Modifies user information (admin operation)
+- **`admin-delete-user.sh`** - Deletes a user (admin operation)
+
+### Admin Rule Management Scripts
+
+- **`admin-get-rule.sh`** - Retrieves a rule (admin operation)
+- **`admin-modify-rule.sh`** - Modifies a rule (admin operation)
+- **`admin-delete-rule.sh`** - Deletes a rule (admin operation)
+
+### Usage Examples
+
+To run the test scripts, first set your environment variables:
+
+```bash
+export GGK_URL="https://your-ggk-service-url"
+export GGK_ADMIN="your-admin-api-key"
+```
+
+Then run scripts as needed:
+
+```bash
+# Create a new rule
+./Test/create-rule.sh
+
+# After creating a rule, note the rule ID from the response and set it
+export GGK_RULE_ID="rule-id-from-response"
+
+# Test the rule
+./Test/check-rule.sh
+
+# Test path pattern matching
+./Test/test-path-pattern-matching.sh $GGK_RULE_ID
+
+# List all users (admin operation)
+./Test/admin-get-users.sh
 ```
 
 ## Why is this secure?
