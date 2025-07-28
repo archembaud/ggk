@@ -26,7 +26,8 @@ JSON_PAYLOAD='{
             "allowedEndpoints": [
                 {
                     "methods": "GET,POST",
-                    "path_pattern": "/api/v2/users/*"
+                    "path_pattern": "/api/v2/users/*",
+                    "effect": "ALLOWED"
                 }
             ]
         }

@@ -2,6 +2,7 @@ import { GGKClient } from './index';
 import dotenv from 'dotenv';
 import axios from 'axios';
 
+
 // Load environment variables
 dotenv.config();
 
@@ -31,15 +32,18 @@ async function definedClientRuleCreationTest(): Promise<string | null> {
                     allowedEndpoints: [
                         {
                             path: '/test/path',
-                            methods: 'GET,POST'
+                            methods: 'GET,POST',
+                            effect: 'ALLOWED'
                         },
                         {
                             methods: 'GET,PUT,DELETE',
-                            path_pattern: '/api/v1/users/*'
+                            path_pattern: '/api/v1/users/*',
+                            effect: 'ALLOWED'
                         },
                         {
                             methods: 'GET',
-                            path_pattern: '/api/v1/products/*'
+                            path_pattern: '/api/v1/products/*',
+                            effect: 'ALLOWED'
                         }
                     ]
                 }
@@ -55,32 +59,6 @@ async function definedClientRuleCreationTest(): Promise<string | null> {
         const getResult = await client.getRule(createResult.ruleId);
         console.log('Retrieved rule:', getResult);
 
-        /*
-        // Update the rule
-        const updateResult = await client.updateRule(createResult.ruleId, {
-            ruleAPI: 'test-api-updated',
-            ruleEnabled: false
-        });
-        console.log('Updated rule:', updateResult);
-        */
-
-        /*
-        // Check if access is allowed
-        const isAllowedResult = await client.isAllowed(createResult.ruleId, {
-            userID: 'test-user-123',
-            url: 'https://some.example.com/test/path',
-            method: 'GET'
-        });
-        console.log('Access check result:', isAllowedResult);
-
-        // Get all rules
-        const allRules = await client.getRules();
-        console.log('All rules:', allRules);
-
-        // Delete the rule
-        const deleteResult = await client.deleteRule(createResult.ruleId);
-        console.log('Deleted rule:', deleteResult);
-        */
 
         return ruleID
 
@@ -96,6 +74,7 @@ async function undefinedClientRuleTest(ruleID: string) {
         provided they know the GUID for the rule.
     */
     const client = new GGKClient(null);
+    console.log("Checking if client can access resource")
     try {
         const isAllowedResult = await client.isAllowed(ruleID, {
             userID: USER_ID,
@@ -168,11 +147,13 @@ async function wildcardRuleTest(): Promise<string | null> {
                     allowedEndpoints: [
                         {
                             methods: 'GET',
-                            path_pattern: '/public/*'
+                            path_pattern: '/public/*',
+                            effect: 'ALLOWED'
                         },
                         {
                             path: '/api/health',
-                            methods: 'GET'
+                            methods: 'GET',
+                            effect: 'ALLOWED'
                         }
                     ]
                 }
@@ -207,12 +188,12 @@ async function wildcardRuleTest(): Promise<string | null> {
     }
 }
 
-async function pathPatternRuleTest(): Promise<string | null> {
+async function effectRuleTest(): Promise<string | null> {
     // Create a client instance with your API key
     const client = new GGKClient(ADMIN_ID);
 
     try {
-        // Create a new rule demonstrating path_pattern functionality
+        // Create a new rule demonstrating effect parameter functionality
         const createResult = await client.createRule({
             ruleAPI: "api.example.com",
             userRules: [
@@ -220,46 +201,57 @@ async function pathPatternRuleTest(): Promise<string | null> {
                     userID: USER_ID,
                     allowedEndpoints: [
                         {
-                            methods: 'GET,POST',
-                            path_pattern: '/api/v1/users/*'
+                            methods: 'GET,POST,PUT,DELETE',
+                            path_pattern: '/api/v1/*',
+                            effect: 'ALLOWED'
                         },
                         {
-                            methods: 'GET,PUT,DELETE',
-                            path_pattern: '/api/v1/products/*'
+                            methods: 'GET,POST,PUT,DELETE',
+                            path_pattern: '/api/v1/admin/*',
+                            effect: 'DISALLOWED'
                         },
                         {
-                            methods: 'GET',
-                            path_pattern: '/api/v2/admin/*'
+                            methods: 'GET,POST,PUT,DELETE',
+                            path_pattern: '/api/v1/users/123',
+                            effect: 'DISALLOWED'
                         }
                     ]
                 },
                 {
-                    userID: 'premium-user',
+                    userID: 'admin-user',
                     allowedEndpoints: [
                         {
                             methods: 'GET,POST,PUT,DELETE',
-                            path_pattern: '/api/v1/*'
+                            path_pattern: '/api/v1/*',
+                            effect: 'ALLOWED'
                         }
                     ]
                 }
             ]
         });
-        console.log('Created path_pattern rule:', createResult);
+        console.log('Created effect rule:', createResult);
 
         const ruleID = createResult.ruleId;
 
-        // Test various path patterns
+        // Test various effect scenarios
         const testCases = [
-            // User-specific tests
-            { userID: USER_ID, url: 'https://api.example.com/api/v1/users/123', method: 'GET' },
-            { userID: USER_ID, url: 'https://api.example.com/api/v1/users/456', method: 'POST' },
-            { userID: USER_ID, url: 'https://api.example.com/api/v1/products/789', method: 'GET' },
-            { userID: USER_ID, url: 'https://api.example.com/api/v2/admin/settings', method: 'GET' },
+            // test-user-123 - Should be ALLOWED (matches ALLOWED pattern, doesn't match DISALLOWED patterns)
+            { userID: USER_ID, url: 'https://api.example.com/api/v1/users/456', method: 'GET' },
+            { userID: USER_ID, url: 'https://api.example.com/api/v1/products/789', method: 'POST' },
+            { userID: USER_ID, url: 'https://api.example.com/api/v1/orders/123', method: 'PUT' },
             
-            // Premium user tests (should have broader access)
-            { userID: 'premium-user', url: 'https://api.example.com/api/v1/users/123', method: 'GET' },
-            { userID: 'premium-user', url: 'https://api.example.com/api/v1/products/789', method: 'PUT' },
-            { userID: 'premium-user', url: 'https://api.example.com/api/v1/orders/123', method: 'POST' }
+            // test-user-123 - Should be DISALLOWED (matches DISALLOWED admin pattern)
+            { userID: USER_ID, url: 'https://api.example.com/api/v1/admin/settings', method: 'GET' },
+            { userID: USER_ID, url: 'https://api.example.com/api/v1/admin/users', method: 'POST' },
+            
+            // test-user-123 - Should be DISALLOWED (matches DISALLOWED specific user pattern)
+            { userID: USER_ID, url: 'https://api.example.com/api/v1/users/123', method: 'GET' },
+            { userID: USER_ID, url: 'https://api.example.com/api/v1/users/123', method: 'DELETE' },
+            
+            // admin-user - Should be ALLOWED (has full access to /api/v1/*)
+            { userID: 'admin-user', url: 'https://api.example.com/api/v1/users/123', method: 'GET' },
+            { userID: 'admin-user', url: 'https://api.example.com/api/v1/admin/settings', method: 'GET' },
+            { userID: 'admin-user', url: 'https://api.example.com/api/v1/products/789', method: 'POST' }
         ];
         
         for (const testCase of testCases) {
@@ -274,7 +266,7 @@ async function pathPatternRuleTest(): Promise<string | null> {
         return ruleID;
 
     } catch (error) {
-        console.error('Error during path_pattern rule demo:', error);
+        console.error('Error during effect rule demo:', error);
         return null;
     }
 }
@@ -332,14 +324,14 @@ async function main() {
         await definedClientDeleteRuleTest(wildcardRuleID);
     }
 
-    // Test path_pattern functionality
-    console.log('\n=== Testing Path Pattern Rule ===');
-    const pathPatternRuleID = await pathPatternRuleTest();
-    if (pathPatternRuleID) {
-        console.log(`Produced path pattern rule ID = ${pathPatternRuleID}`);
+    // Test effect parameter functionality
+    console.log('\n=== Testing Effect Parameter Rule ===');
+    const effectRuleID = await effectRuleTest();
+    if (effectRuleID) {
+        console.log(`Produced effect rule ID = ${effectRuleID}`);
         
-        // Clean up the path pattern rule
-        await definedClientDeleteRuleTest(pathPatternRuleID);
+        // Clean up the effect rule
+        await definedClientDeleteRuleTest(effectRuleID);
     }
 
     // Admin user management demo

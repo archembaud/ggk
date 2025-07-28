@@ -18,15 +18,18 @@ JSON_PAYLOAD='{
             "allowedEndpoints": [
                 {
                     "methods": "GET,POST",
-                    "path_pattern": "/api/v1/users/*"
+                    "path_pattern": "/api/v1/users/*",
+                    "effect": "ALLOWED"
                 },
                 {
                     "methods": "GET",
-                    "path_pattern": "/api/v1/products/*"
+                    "path_pattern": "/api/v1/products/*",
+                    "effect": "ALLOWED"
                 },
                 {
                     "path": "/api/v2/admin",
-                    "methods": "GET,POST,PUT,DELETE"
+                    "methods": "GET,POST,PUT,DELETE",
+                    "effect": "ALLOWED"
                 }
             ]
         },
@@ -35,7 +38,8 @@ JSON_PAYLOAD='{
             "allowedEndpoints": [
                 {
                     "methods": "GET",
-                    "path_pattern": "/api/v1/public/*"
+                    "path_pattern": "/api/v1/public/*",
+                    "effect": "ALLOWED"
                 }
             ]
         }

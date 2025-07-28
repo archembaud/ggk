@@ -6,6 +6,7 @@ export interface UserRule {
         path?: string;
         methods: string;
         path_pattern?: string;
+        effect?: 'ALLOWED' | 'DISALLOWED';
     }[];
 }
 

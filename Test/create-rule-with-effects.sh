@@ -9,7 +9,7 @@ fi
 # The API key to use in the Authorization header
 API_KEY="92d077c1-31ed-49be-a1ce-dae6c2b07e19"
 
-# The JSON payload for the request
+# The JSON payload for the request with effect parameters
 JSON_PAYLOAD='{
     "ruleAPI": "api.example.com",
     "userRules": [
@@ -17,14 +17,29 @@ JSON_PAYLOAD='{
             "userID": "test-user-123",
             "allowedEndpoints": [
                 {
-                    "path": "/test/path",
-                    "methods": "GET,POST",
+                    "methods": "GET,POST,PUT,DELETE",
+                    "path_pattern": "/api/v1/*",
                     "effect": "ALLOWED"
                 },
                 {
-                    "path": "/test/anotherpath",
-                    "methods": "DELETE",
+                    "methods": "GET,POST,PUT,DELETE",
+                    "path_pattern": "/api/v1/admin/*",
                     "effect": "DISALLOWED"
+                },
+                {
+                    "methods": "GET,POST,PUT,DELETE",
+                    "path_pattern": "/api/v1/users/123",
+                    "effect": "DISALLOWED"
+                }
+            ]
+        },
+        {
+            "userID": "admin-user",
+            "allowedEndpoints": [
+                {
+                    "methods": "GET,POST,PUT,DELETE",
+                    "path_pattern": "/api/v1/*",
+                    "effect": "ALLOWED"
                 }
             ]
         }

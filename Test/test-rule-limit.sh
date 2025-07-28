@@ -25,7 +25,8 @@ for i in {1..12}; do
                 \"allowedEndpoints\": [
                     {
                         \"path\": \"/test/path$i\",
-                        \"methods\": \"GET,POST\"
+                        \"methods\": \"GET,POST\",
+                        \"effect\": \"ALLOWED\"
                     }
                 ]
             }

@@ -536,6 +536,43 @@ function pathMatchesEndpoint(urlPath: string, endpoint: any): boolean {
     return false;
 }
 
+// Helper function to check if all endpoints are satisfied for a given path and method
+function allEndpointsSatisfied(urlPath: string, method: string, allowedEndpoints: any[]): boolean {
+    // If no endpoints are defined, deny access by default
+    if (!allowedEndpoints || allowedEndpoints.length === 0) {
+        return false;
+    }
+
+    // First, find all relevant rules (rules that match the path and method)
+    const relevantRules = allowedEndpoints.filter(endpoint => {
+        const pathMatches = pathMatchesEndpoint(urlPath, endpoint);
+        const methodMatches = endpoint.methods.split(',').map((m: string) => m.trim().toUpperCase()).includes(method.toUpperCase());
+        return pathMatches && methodMatches;
+    });
+
+    // If no relevant rules found, deny access
+    if (relevantRules.length === 0) {
+        return false;
+    }
+
+    // Check each relevant rule
+    for (const endpoint of relevantRules) {
+        // Get the effect (default to ALLOWED for backward compatibility)
+        const effect = endpoint.effect || 'ALLOWED';
+        
+        if (effect === 'ALLOWED') {
+            // For ALLOWED rules, if we reach here, the rule is satisfied (since it's relevant)
+            continue; // This rule is satisfied, check the next one
+        } else if (effect === 'DISALLOWED') {
+            // For DISALLOWED rules, if we reach here, access is explicitly denied
+            return false; // Access is explicitly denied
+        }
+    }
+    
+    // All relevant rules are satisfied
+    return true;
+}
+
 export const isAllowedHandler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
     try {
         // Get ruleId from path parameters
@@ -641,18 +678,7 @@ export const isAllowedHandler = async (event: APIGatewayProxyEvent): Promise<API
             }
             
             // Use the wildcard rule for validation
-            const matchingEndpoint = wildcardUserRule.allowedEndpoints.find((endpoint: any) => {
-                // Check if the path matches the endpoint (either path or path_pattern)
-                if (!pathMatchesEndpoint(urlPath, endpoint)) {
-                    return false;
-                }
-
-                // Check if the method is allowed
-                const allowedMethods = endpoint.methods.split(',').map((m: string) => m.trim().toUpperCase());
-                return allowedMethods.includes(body.method.toUpperCase());
-            });
-
-            if (!matchingEndpoint) {
+            if (!allEndpointsSatisfied(urlPath, body.method, wildcardUserRule.allowedEndpoints)) {
                 return {
                     statusCode: 401,
                     body: JSON.stringify({ 
@@ -678,19 +704,8 @@ export const isAllowedHandler = async (event: APIGatewayProxyEvent): Promise<API
             };
         }
 
-        // Check if any of the allowed endpoints match the request for the specific user
-        const matchingEndpoint = matchingUserRule.allowedEndpoints.find((endpoint: any) => {
-            // Check if the path matches the endpoint (either path or path_pattern)
-            if (!pathMatchesEndpoint(urlPath, endpoint)) {
-                return false;
-            }
-
-            // Check if the method is allowed
-            const allowedMethods = endpoint.methods.split(',').map((m: string) => m.trim().toUpperCase());
-            return allowedMethods.includes(body.method.toUpperCase());
-        });
-
-        if (!matchingEndpoint) {
+        // Check if all allowed endpoints are satisfied for the specific user
+        if (!allEndpointsSatisfied(urlPath, body.method, matchingUserRule.allowedEndpoints)) {
             return {
                 statusCode: 401,
                 body: JSON.stringify({ 

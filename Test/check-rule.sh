@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# The script is supposed to be run after the create-rule.sh script has run.
+# You'll need to get the rule ID generated as part of this script.
+
 # Check if GGK_URL is set
 if [ -z "$GGK_URL" ]; then
     echo "Error: GGK_URL environment variable is not set"
@@ -36,6 +39,23 @@ echo "Checking bad request now..."
 JSON_PAYLOAD='{
     "userID": "test-user-123",
     "url": "https://api.example.com/test/path",
+    "method": "DELETE"
+}'
+
+# Make the POST request
+curl -X POST \
+    -H "Content-Type: application/json" \
+    -d "$JSON_PAYLOAD" \
+    "$GGK_URL/rules/$GGK_RULE_ID/isAllowed"
+
+echo # Add a newline after the response
+
+# Now check another bad request
+echo "Checking another bad request now..."
+# The JSON payload for the request
+JSON_PAYLOAD='{
+    "userID": "test-user-123",
+    "url": "https://api.example.com/test/anotherpath",
     "method": "DELETE"
 }'
 

@@ -22,7 +22,8 @@ JSON_PAYLOAD='{
             "allowedEndpoints": [
                 {
                     "path": "/test",
-                    "methods": "GET,POST"
+                    "methods": "GET,POST",
+                    "effect": "ALLOWED"
                 }
             ]
         }
