@@ -22,6 +22,11 @@ JSON_PAYLOAD='{
                     "effect": "ALLOWED"
                 },
                 {
+                    "path": "/test/path",
+                    "methods": "DELETE",
+                    "effect": "DISALLOWED"
+                },
+                {
                     "path": "/test/anotherpath",
                     "methods": "DELETE",
                     "effect": "DISALLOWED"
