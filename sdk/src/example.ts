@@ -364,7 +364,7 @@ async function adminUserManagementDemo() {
 }
 
 async function main() {
-    /*
+
     // Create a simple rule
     const ruleID = await definedClientRuleCreationTest()
     if (ruleID) {
@@ -399,7 +399,7 @@ async function main() {
         // Clean up the effect rule
         await definedClientDeleteRuleTest(effectRuleID);
     }
-    */
+
     // Test single DISALLOWED rule functionality
     console.log('\n=== Testing Single DISALLOWED Rule ===');
     const singleDisallowedRuleID = await singleDisallowedRuleTest();
