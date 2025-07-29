@@ -536,12 +536,26 @@ function pathMatchesEndpoint(urlPath: string, endpoint: any): boolean {
     return false;
 }
 
+// Helper function to extract URL parameters from a URL string
+function extractUrlParameters(url: string): string {
+    try {
+        const urlObj = new URL(url);
+        return urlObj.search || '';
+    } catch (error) {
+        console.error('Error extracting URL parameters:', error);
+        return '';
+    }
+}
+
 // Helper function to check if all endpoints are satisfied for a given path and method
-function allEndpointsSatisfied(urlPath: string, method: string, pathRules: any[]): boolean {
+function allEndpointsSatisfied(urlPath: string, method: string, pathRules: any[], fullUrl: string): boolean {
     // If no endpoints are defined, deny access by default
     if (!pathRules || pathRules.length === 0) {
         return true;
     }
+
+    // Extract URL parameters for query pattern matching
+    const urlParameters = extractUrlParameters(fullUrl);
 
     // First, find all relevant rules (rules that match the path and method)
     const relevantRules = pathRules.filter(endpoint => {
@@ -560,12 +574,39 @@ function allEndpointsSatisfied(urlPath: string, method: string, pathRules: any[]
         // Get the effect (default to ALLOWED for backward compatibility)
         const effect = endpoint.effect || 'ALLOWED';
         
-        if (effect === 'ALLOWED') {
-            // For ALLOWED rules, if we reach here, the rule is satisfied (since it's relevant)
-            continue; // This rule is satisfied, check the next one
-        } else if (effect === 'DISALLOWED') {
-            // For DISALLOWED rules, if we reach here, access is explicitly denied
-            return false; // Access is explicitly denied
+        // Check query pattern if it exists and is not empty
+        if (endpoint.query_pattern && endpoint.query_pattern.trim() !== '') {
+            try {
+                const regex = new RegExp(endpoint.query_pattern);
+                const hasMatch = regex.test(urlParameters);
+                
+                if (effect === 'ALLOWED') {
+                    // For ALLOWED rules, if query pattern doesn't match, this rule is not satisfied
+                    if (!hasMatch) {
+                        return false; // Access denied because query pattern doesn't match
+                    }
+                } else if (effect === 'DISALLOWED') {
+                    // For DISALLOWED rules, if query pattern matches, access is explicitly denied
+                    if (hasMatch) {
+                        return false; // Access is explicitly denied
+                    }
+                }
+            } catch (error) {
+                console.error('Invalid query pattern regex:', endpoint.query_pattern, error);
+                // If regex is invalid, treat as no match for ALLOWED rules, or no restriction for DISALLOWED rules
+                if (effect === 'ALLOWED') {
+                    return false; // Access denied due to invalid regex
+                }
+            }
+        } else {
+            // No query pattern specified, use the original logic
+            if (effect === 'ALLOWED') {
+                // For ALLOWED rules, if we reach here, the rule is satisfied (since it's relevant)
+                continue; // This rule is satisfied, check the next one
+            } else if (effect === 'DISALLOWED') {
+                // For DISALLOWED rules, if we reach here, access is explicitly denied
+                return false; // Access is explicitly denied
+            }
         }
     }
     
@@ -678,7 +719,7 @@ export const isAllowedHandler = async (event: APIGatewayProxyEvent): Promise<API
             }
             
             // Use the wildcard rule for validation
-            if (!allEndpointsSatisfied(urlPath, body.method, wildcardUserRule.pathRules)) {
+            if (!allEndpointsSatisfied(urlPath, body.method, wildcardUserRule.pathRules, body.url)) {
                 return {
                     statusCode: 401,
                     body: JSON.stringify({ 
@@ -705,7 +746,7 @@ export const isAllowedHandler = async (event: APIGatewayProxyEvent): Promise<API
         }
 
         // Check if all path rules are satisfied for the specific user
-        if (!allEndpointsSatisfied(urlPath, body.method, matchingUserRule.pathRules)) {
+        if (!allEndpointsSatisfied(urlPath, body.method, matchingUserRule.pathRules, body.url)) {
             return {
                 statusCode: 401,
                 body: JSON.stringify({ 

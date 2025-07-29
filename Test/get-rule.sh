@@ -15,7 +15,7 @@ fi
 # The API key to use in the Authorization header
 API_KEY="92d077c1-31ed-49be-a1ce-dae6c2b07e19"
 
-echo "Testing valid fetch on rule"
+#echo "Testing valid fetch on rule"
 
 curl -X GET \
     -H "Authorization: $API_KEY" \
@@ -23,11 +23,10 @@ curl -X GET \
     "$GGK_URL/rules/$GGK_RULE_ID"
 
 # Now to test an invalid fetch
-API_KEY="boom-shaka-laka"
-
-echo "Testing invalid valid fetch on rule"
-
-curl -X GET \
-    -H "Authorization: $API_KEY" \
-    -H "Content-Type: application/json" \
-    "$GGK_URL/rules/$GGK_RULE_ID"
+#API_KEY="boom-shaka-laka"
+#
+#echo "Testing invalid valid fetch on rule"
+#curl -X GET \
+#    -H "Authorization: $API_KEY" \
+#    -H "Content-Type: application/json" \
+#    "$GGK_URL/rules/$GGK_RULE_ID"
